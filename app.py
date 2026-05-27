@@ -23,7 +23,7 @@ st.set_page_config(page_title=APP_TITLE, page_icon="📘", layout="wide")
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Amiri:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Amiri:wght@400;700&family=Cairo:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Noto+Sans+Arabic:wght@400;700&family=Tajawal:wght@400;700&display=swap');
 
 :root {
     --bg-1: #fff4e6;
@@ -69,6 +69,12 @@ html, body, [class*="css"] {
     font-size: 1.1rem;
     font-weight: 700;
     margin-bottom: .5rem;
+}
+
+.answer-label {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: .4rem 0;
 }
 
 .arabic {
@@ -162,7 +168,7 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
     if mode == "Nederlands -> Arabisch":
         pool = [x for x in df["arabic"].tolist() if x != row["arabic"]]
         random.shuffle(pool)
-        options = [row["arabic"]] + pool[:3]
+        options = [row["arabic"]] + pool[:4]
         random.shuffle(options)
         return {
             "mode": mode,
@@ -179,7 +185,7 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
     if mode == "Arabisch -> Nederlands":
         pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
         random.shuffle(pool)
-        options = [row["dutch"]] + pool[:3]
+        options = [row["dutch"]] + pool[:4]
         random.shuffle(options)
         return {
             "mode": mode,
@@ -196,7 +202,7 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
     # Luisteren -> Nederlands
     pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
     random.shuffle(pool)
-    options = [row["dutch"]] + pool[:3]
+    options = [row["dutch"]] + pool[:4]
     random.shuffle(options)
     return {
         "mode": mode,
@@ -310,6 +316,12 @@ with st.sidebar:
     st.session_state.answer_style = st.radio("Antwoordtype", ["Meerkeuze", "Typen"], horizontal=True)
 
     st.markdown("---")
+    arabic_font = st.selectbox(
+        "Arabisch lettertype",
+        ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic", "Cairo", "Tajawal"],
+    )
+
+    st.markdown("---")
     st.subheader("Arabische stem")
 
     all_voices = list_macos_arabic_voices()
@@ -324,6 +336,17 @@ with st.sidebar:
         index=default_voice_index,
     )
 
+st.markdown(
+    f"""
+<style>
+.arabic {{
+    font-family: '{arabic_font}', 'Amiri', serif !important;
+}}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 if (
     "question" not in st.session_state
     or st.session_state.get("question", {}).get("mode") != mode
@@ -337,16 +360,16 @@ question = st.session_state.question
 
 if question["mode"] == "Nederlands -> Arabisch":
     st.markdown(
-        """
+        f"""
 <style>
 [data-testid="stMain"] [data-testid="stRadio"] label p,
 [data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {
+[data-testid="stMain"] [data-testid="stRadio"] label div {{
     font-size: 2.25rem !important;
     direction: rtl !important;
     text-align: right !important;
-    font-family: 'Amiri', 'Manrope', sans-serif !important;
-}
+    font-family: '{arabic_font}', 'Amiri', 'Manrope', sans-serif !important;
+}}
 </style>
 """,
         unsafe_allow_html=True,
@@ -358,7 +381,7 @@ elif question["mode"] == "Arabisch -> Nederlands":
 [data-testid="stMain"] [data-testid="stRadio"] label p,
 [data-testid="stMain"] [data-testid="stRadio"] label span,
 [data-testid="stMain"] [data-testid="stRadio"] label div {
-    font-size: 2.25rem !important;
+    font-size: 1.35rem !important;
     direction: ltr !important;
     text-align: left !important;
 }
@@ -413,11 +436,13 @@ with col_main:
     trigger_auto_advance = False
 
     if question["answer_style"] == "Meerkeuze":
+        st.markdown("<div class='answer-label'>Kies je antwoord</div>", unsafe_allow_html=True)
         selected = st.radio(
             "Kies je antwoord",
             question["options"],
             index=None,
             key=f"choice_{qid}",
+            label_visibility="collapsed",
         )
 
         if question["mode"] == "Nederlands -> Arabisch" and selected:
