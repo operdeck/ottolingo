@@ -29,11 +29,11 @@ De woorden staan in `data/words.csv` met kolommen:
 
 Je kunt:
 - direct regels toevoegen in het CSV-bestand
-- of in de app via de zijbalk een woord toevoegen
 
 ## Opmerking over audio
 
 De luisteroefening gebruikt het macOS commando `say` met Arabische stem `Majed`.
+Extra stemmen installeren op macOS: Systeeminstellingen -> Toegankelijkheid -> Gesproken materiaal -> Systeemstem -> Beheer stemmen (kies Arabisch).
 Als dat op jouw systeem niet werkt, controleer of de stem beschikbaar is:
 
 ```bash

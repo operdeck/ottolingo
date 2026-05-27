@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import hashlib
 import random
 import subprocess
@@ -13,7 +12,8 @@ import streamlit as st
 
 APP_TITLE = "Ottolingo - Arabisch Oefenen"
 WORDS_FILE = Path(__file__).parent / "data" / "words.csv"
-ARABIC_VOICE = "Majed"
+REPO_URL = "https://github.com/operdeck/ottolingo"
+DEFAULT_ARABIC_VOICE = "Majed"
 AUTO_ADVANCE_DELAY_CORRECT_SECONDS = 1.0
 AUTO_ADVANCE_DELAY_WRONG_SECONDS = 1.8
 
@@ -123,15 +123,6 @@ def load_words() -> pd.DataFrame:
     return df[expected].fillna("")
 
 
-def append_word(dutch: str, arabic: str, transliteration: str) -> None:
-    file_exists = WORDS_FILE.exists()
-    with WORDS_FILE.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["dutch", "arabic", "transliteration"])
-        writer.writerow([dutch.strip(), arabic.strip(), transliteration.strip()])
-
-
 def get_stats() -> dict[str, dict[str, int]]:
     if "stats" not in st.session_state:
         st.session_state.stats = {}
@@ -220,7 +211,7 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
     }
 
 
-def macos_tts_audio(text: str, voice: str = ARABIC_VOICE) -> tuple[bytes, str] | None:
+def macos_tts_audio(text: str, voice: str = DEFAULT_ARABIC_VOICE) -> tuple[bytes, str] | None:
     cache_dir = Path(tempfile.gettempdir()) / "ottolingo_tts"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -261,6 +252,28 @@ def macos_tts_audio(text: str, voice: str = ARABIC_VOICE) -> tuple[bytes, str] |
     return wav_path.read_bytes(), "audio/wav"
 
 
+@st.cache_data(show_spinner=False)
+def list_macos_arabic_voices() -> list[str]:
+    try:
+        result = subprocess.run(["say", "-v", "?"], check=True, capture_output=True, text=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return [DEFAULT_ARABIC_VOICE]
+
+    voices: list[str] = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        name, language = parts[0], parts[1]
+        if language.startswith("ar_"):
+            voices.append(name)
+
+    if DEFAULT_ARABIC_VOICE not in voices:
+        voices.append(DEFAULT_ARABIC_VOICE)
+
+    return sorted(set(voices), key=str.lower)
+
+
 def grade_answer(question: dict, answer: str) -> bool:
     return normalize(answer) in [x for x in question["accepted"] if x]
 
@@ -278,6 +291,7 @@ def update_stats(word_key: str, correct: bool) -> None:
 
 st.title(APP_TITLE)
 st.caption("Train slim: woorden met meer fouten komen vaker terug.")
+st.link_button("Bekijk op GitHub", REPO_URL)
 
 words_df = load_words()
 if words_df.empty:
@@ -296,19 +310,19 @@ with st.sidebar:
     st.session_state.answer_style = st.radio("Antwoordtype", ["Meerkeuze", "Typen"], horizontal=True)
 
     st.markdown("---")
-    st.subheader("Nieuw woord toevoegen")
-    with st.form("add_word_form", clear_on_submit=True):
-        dutch_new = st.text_input("Nederlands", placeholder="bijv. water")
-        arabic_new = st.text_input("Arabisch", placeholder="bijv. ماء")
-        trans_new = st.text_input("Transliteratie (optioneel)", placeholder="bijv. maa")
-        submitted_new = st.form_submit_button("Toevoegen")
+    st.subheader("Arabische stem")
 
-        if submitted_new:
-            if not dutch_new.strip() or not arabic_new.strip():
-                st.warning("Nederlands en Arabisch zijn verplicht.")
-            else:
-                append_word(dutch_new, arabic_new, trans_new)
-                st.success("Woord toegevoegd. Herlaad de pagina voor direct gebruik.")
+    all_voices = list_macos_arabic_voices()
+
+    default_voice_index = 0
+    if DEFAULT_ARABIC_VOICE in all_voices:
+        default_voice_index = all_voices.index(DEFAULT_ARABIC_VOICE)
+
+    selected_arabic_voice = st.selectbox(
+        "Kies stem",
+        all_voices,
+        index=default_voice_index,
+    )
 
 if (
     "question" not in st.session_state
@@ -380,7 +394,7 @@ with col_main:
     qid = st.session_state.get("qid", 0)
 
     if question["mode"] == "Luisteren -> Nederlands":
-        audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=ARABIC_VOICE)
+        audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=selected_arabic_voice)
         if audio_payload:
             audio_bytes, audio_format = audio_payload
             st.audio(audio_bytes, format=audio_format)
@@ -389,7 +403,7 @@ with col_main:
 
     if question["mode"] == "Arabisch -> Nederlands":
         if st.button("Spreek Arabisch woord uit", key=f"speak_ar_nl_{qid}"):
-            audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=ARABIC_VOICE)
+            audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=selected_arabic_voice)
             if audio_payload:
                 audio_bytes, audio_format = audio_payload
                 st.audio(audio_bytes, format=audio_format, autoplay=True)
@@ -409,7 +423,7 @@ with col_main:
         if question["mode"] == "Nederlands -> Arabisch" and selected:
             spoken_key = f"{qid}:{selected}"
             if st.session_state.get("last_spoken_choice") != spoken_key:
-                audio_payload = macos_tts_audio(selected, voice=ARABIC_VOICE)
+                audio_payload = macos_tts_audio(selected, voice=selected_arabic_voice)
                 if audio_payload:
                     audio_bytes, audio_format = audio_payload
                     st.audio(audio_bytes, format=audio_format, autoplay=True)
@@ -499,7 +513,16 @@ with col_side:
         )
 
     if leaderboard:
-        board_df = pd.DataFrame(leaderboard).sort_values(["fouten", "pogingen"], ascending=False)
+        board_df = (
+            pd.DataFrame(leaderboard)
+            .sort_values(
+                by=["fouten", "pogingen", "succes%", "woord"],
+                ascending=[False, False, True, True],
+                kind="mergesort",
+            )
+            .reset_index(drop=True)
+        )
+        board_df.insert(0, "#", board_df.index + 1)
         st.dataframe(board_df, use_container_width=True, hide_index=True)
     else:
         st.caption("Maak je eerste oefening om statistieken te zien.")
