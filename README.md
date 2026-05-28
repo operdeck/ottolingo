@@ -1,14 +1,20 @@
 # Ottolingo (Arabisch voor beginners)
 
-Visueel oefenprogramma voor macOS (Apple Silicon) met:
-- Nederlands -> Arabisch
-- Arabisch -> Nederlands
-- Luisteren -> Nederlands (met macOS `say`)
-- Fout-gewogen herhaling: woorden die je vaker fout doet komen vaker terug
+Visueel oefenprogramma voor macOS met praktisch Arabisch vocabulaire voor reizigers en dagelijks gebruik.
+
+## Features
+
+- Nederlands ↔ Arabisch oefenen (meerkeuze of typen)
+- Luisteroefening met macOS text-to-speech (stem: Majed)
+- 7 thematische woordenlijsten: Basis, Begroetingen, Eten & drinken, Familie & mensen, Reizen, Tijd & getallen, Winkelen (321 woorden)
+- Slimme herhaling: fout-gewogen selectie + confusion matrix zorgt dat je zwakke plekken vaker oefent
+- Vergelijkbare woorden verschijnen vaker als afleiders bij meerkeuze
+- Commentaar bij woorden toont grammaticale context (geslacht, dialect, culturele noot)
+- Keuze uit Arabische lettertypen (Amiri, Noto Naskh, Cairo, etc.)
 
 ## Starten
 
-1. Installeer dependencies en maak automatisch een `.venv` met uv:
+1. Installeer dependencies:
 
 ```bash
 uv sync
@@ -22,45 +28,30 @@ uv run streamlit run app.py
 
 ## Woordenlijst uitbreiden
 
-De woorden staan in `data/words.csv` met kolommen:
-- `dutch`
-- `arabic`
-- `transliteration`
+Woorden staan in `data/` met per categorie een submap:
 
-Je kunt:
-- direct regels toevoegen in het CSV-bestand
+```
+data/
+├── Basis/words.csv
+├── Begroetingen/words.csv
+├── Eten en drinken/words.csv
+└── ...
+```
+
+Nieuwe categorie toevoegen = map aanmaken met een CSV erin. De app ontdekt categorieën automatisch. CSV-kolommen: `dutch`, `arabic`, `transliteration`, `comment`.
 
 ## Opmerking over audio
 
-De luisteroefening gebruikt het macOS commando `say` met Arabische stem `Majed`.
-Extra stemmen installeren op macOS: Systeeminstellingen -> Toegankelijkheid -> Gesproken materiaal -> Systeemstem -> Beheer stemmen (kies Arabisch).
-Als dat op jouw systeem niet werkt, controleer of de stem beschikbaar is:
-
-```bash
-say -v '?'
-```
+De luisteroefening gebruikt het macOS commando `say` met Arabische stem.
+Extra stemmen installeren: Systeeminstellingen → Toegankelijkheid → Gesproken materiaal → Systeemstem → Beheer stemmen (kies Arabisch).
 
 ## Ideeën voor verdere verbeteringen
 
-### Quick wins
-
-- Lastige woorden modus: alleen woorden met laag succespercentage
-- Thema-sets: woorden per onderwerp (eten, reizen, werk, familie)
-- Mini-toets: 10 willekeurige vragen met eindscore en verbeteradvies
-- Sneltoetsen: toetsen 1-5 voor meerkeuze om sneller te oefenen
-- Alfabet oefenen: expliciete modus voor Arabische letters (vorm, klank, transliteratie)
-
-### Middelgrote features
-
-- Time challenge (game mode): tijdslimiet (bijv. 60 of 120 sec) en zoveel mogelijk goede antwoorden
-- Zinsniveau: korte voorbeeldzinnen per woord (niet alleen losse woorden)
-- Dictee modus: alleen luisteren en zelf typen zonder opties
-- Schrijfoefening Arabisch: typ Arabisch vanaf transliteratie of audio
-- Omgekeerde transliteratie: Arabisch zien en transliteratie invullen
-- Foutuitleg: toon waarom een antwoord fout was + vergelijkbare woorden
-
-### Grotere uitbreidingen
-
-- Herhaalplanning: spaced repetition met dagplanning (vandaag, morgen, over 3 dagen)
-- Voortgang opslaan: scores persistent bewaren tussen sessies
-- Export/import: woordenlijst en voortgang als CSV/JSON
+- Spaced repetition met dagplanning (vandaag, morgen, over 3 dagen)
+- Voortgang persistent opslaan tussen sessies
+- Lastige-woorden-modus: alleen woorden met laag succespercentage
+- Mini-toets: 10 vragen met eindscore en verbeteradvies
+- Sneltoetsen 1-5 voor meerkeuze
+- Time challenge: zoveel mogelijk goed binnen 60/120 seconden
+- Schrijfoefening: Arabisch typen vanaf transliteratie of audio
+- Alfabet oefenen: Arabische letters (vorm, klank, positie in woord)

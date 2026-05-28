@@ -170,7 +170,13 @@ def weighted_pick(df: pd.DataFrame) -> pd.Series:
 
     for row in rows:
         item = stats.get(row["dutch"], {"right": 0, "wrong": 0})
-        weights.append(1.0 + (item["wrong"] * 2.8) + (item["wrong"] - item["right"]) * 0.4)
+        total = item["right"] + item["wrong"]
+        if total == 0:
+            w = 2.0
+        else:
+            error_rate = item["wrong"] / total
+            w = 1.0 + error_rate * 3.0 + item["wrong"] * 0.5
+        weights.append(max(w, 0.8))
 
     if st.session_state.get("last_word"):
         for i, row in enumerate(rows):
@@ -182,14 +188,51 @@ def weighted_pick(df: pd.DataFrame) -> pd.Series:
     return pd.Series(chosen)
 
 
+def similarity_score(a: str, b: str) -> float:
+    a, b = a.strip(), b.strip()
+    if not a or not b:
+        return 0.0
+    prefix = 0
+    for c1, c2 in zip(a, b):
+        if c1 == c2:
+            prefix += 1
+        else:
+            break
+    set_a, set_b = set(a), set(b)
+    overlap = len(set_a & set_b) / max(len(set_a | set_b), 1)
+    len_sim = 1.0 - abs(len(a) - len(b)) / max(len(a), len(b), 1)
+    return prefix / max(len(a), len(b)) * 0.4 + overlap * 0.4 + len_sim * 0.2
+
+
+def pick_confusable_options(
+    correct: str, pool: list[str], word_key: str = "", n: int = 4
+) -> list[str]:
+    if len(pool) <= n:
+        return pool[:]
+
+    confusions = get_confusions()
+    confused_with = confusions.get(word_key, {})
+
+    scored = []
+    for item in pool:
+        sim = similarity_score(correct, item)
+        confusion_bonus = confused_with.get(item, 0) * 0.5
+        scored.append((item, sim + confusion_bonus))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    top_confusable = [item for item, _ in scored[: n * 2]]
+    random.shuffle(top_confusable)
+    return top_confusable[:n]
+
+
 def build_question(df: pd.DataFrame, mode: str) -> dict:
     answer_style = st.session_state.get("answer_style", "Meerkeuze")
     row = weighted_pick(df)
 
     if mode == "Nederlands -> Arabisch":
         pool = [x for x in df["arabic"].tolist() if x != row["arabic"]]
-        random.shuffle(pool)
-        options = [row["arabic"]] + pool[:4]
+        distractors = pick_confusable_options(row["arabic"], pool, row["dutch"])
+        options = [row["arabic"]] + distractors
         random.shuffle(options)
         return {
             "mode": mode,
@@ -205,8 +248,8 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
 
     if mode == "Arabisch -> Nederlands":
         pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
-        random.shuffle(pool)
-        options = [row["dutch"]] + pool[:4]
+        distractors = pick_confusable_options(row["dutch"], pool, row["dutch"])
+        options = [row["dutch"]] + distractors
         random.shuffle(options)
         return {
             "mode": mode,
@@ -222,9 +265,8 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
 
     # Luisteren -> Nederlands
     pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
-    random.shuffle(pool)
-    options = [row["dutch"]] + pool[:4]
-    random.shuffle(options)
+    distractors = pick_confusable_options(row["dutch"], pool, row["dutch"])
+    options = [row["dutch"]] + distractors
     return {
         "mode": mode,
         "prompt": "Luister en kies het juiste Nederlandse woord.",
@@ -305,6 +347,19 @@ def grade_answer(question: dict, answer: str) -> bool:
     return normalize(answer) in [x for x in question["accepted"] if x]
 
 
+def get_confusions() -> dict[str, dict[str, int]]:
+    if "confusions" not in st.session_state:
+        st.session_state.confusions = {}
+    return st.session_state.confusions
+
+
+def record_confusion(word_key: str, confused_with: str) -> None:
+    confusions = get_confusions()
+    if word_key not in confusions:
+        confusions[word_key] = {}
+    confusions[word_key][confused_with] = confusions[word_key].get(confused_with, 0) + 1
+
+
 def update_stats(word_key: str, correct: bool) -> None:
     stats = get_stats()
     if word_key not in stats:
@@ -320,32 +375,27 @@ st.title(APP_TITLE)
 st.caption("Train slim: woorden met meer fouten komen vaker terug.")
 st.link_button("Bekijk op GitHub", REPO_URL)
 
-words_df = load_words(category)
-if words_df.empty:
-    st.error("Geen woorden gevonden voor deze categorie.")
-    st.stop()
-
-ensure_stats_for_words(words_df)
-
 with st.sidebar:
-    st.subheader("Instellingen")
+    st.subheader("Woordenlijst")
     categories = discover_categories()
-    category = st.selectbox("Woordenlijst", ["Alle woorden"] + categories)
+    category = st.selectbox("Woordenlijst", ["Alle woorden"] + categories, label_visibility="collapsed")
 
+    st.subheader("Oefenmodus")
     mode = st.selectbox(
         "Oefenmodus",
         ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Luisteren -> Nederlands"],
+        label_visibility="collapsed",
     )
 
     st.session_state.answer_style = st.radio("Antwoordtype", ["Meerkeuze", "Typen"], horizontal=True)
 
-    st.markdown("---")
+    st.subheader("Arabisch lettertype")
     arabic_font = st.selectbox(
         "Arabisch lettertype",
         ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic", "Cairo", "Tajawal"],
+        label_visibility="collapsed",
     )
 
-    st.markdown("---")
     st.subheader("Arabische stem")
 
     all_voices = list_macos_arabic_voices()
@@ -359,6 +409,13 @@ with st.sidebar:
         all_voices,
         index=default_voice_index,
     )
+
+words_df = load_words(category)
+if words_df.empty:
+    st.error("Geen woorden gevonden voor deze categorie.")
+    st.stop()
+
+ensure_stats_for_words(words_df)
 
 st.markdown(
     f"""
@@ -431,7 +488,7 @@ else:
         unsafe_allow_html=True,
     )
 
-col_main, col_side = st.columns([2.4, 1.0], gap="large")
+col_main, col_side = st.columns([2.0, 1.2], gap="large")
 
 with col_main:
     st.markdown(f"<span class='badge'>{question['mode']}</span>", unsafe_allow_html=True)
@@ -486,6 +543,8 @@ with col_main:
             else:
                 is_correct = selected == question["correct"]
                 update_stats(question["word_key"], is_correct)
+                if not is_correct:
+                    record_confusion(question["word_key"], selected)
                 st.session_state.answered = True
                 st.session_state.last_result = is_correct
                 trigger_auto_advance = True
@@ -570,13 +629,12 @@ with col_side:
         board_df = (
             pd.DataFrame(leaderboard)
             .sort_values(
-                by=["fouten", "pogingen", "succes%", "woord"],
-                ascending=[False, False, True, True],
+                by=["succes%", "fouten", "pogingen", "woord"],
+                ascending=[True, False, False, True],
                 kind="mergesort",
             )
             .reset_index(drop=True)
         )
-        board_df.insert(0, "#", board_df.index + 1)
         st.dataframe(board_df, use_container_width=True, hide_index=True)
     else:
         st.caption("Maak je eerste oefening om statistieken te zien.")
