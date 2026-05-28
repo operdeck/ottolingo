@@ -11,7 +11,7 @@ import pandas as pd
 import streamlit as st
 
 APP_TITLE = "Ottolingo - Arabisch Oefenen"
-WORDS_FILE = Path(__file__).parent / "data" / "words.csv"
+DATA_DIR = Path(__file__).parent / "data"
 REPO_URL = "https://github.com/operdeck/ottolingo"
 DEFAULT_ARABIC_VOICE = "Majed"
 AUTO_ADVANCE_DELAY_CORRECT_SECONDS = 1.0
@@ -117,16 +117,37 @@ def normalize(text: str) -> str:
     return " ".join((text or "").strip().lower().split())
 
 
-def load_words() -> pd.DataFrame:
-    if not WORDS_FILE.exists():
-        return pd.DataFrame(columns=["dutch", "arabic", "transliteration"])
+def discover_categories() -> list[str]:
+    if not DATA_DIR.exists():
+        return []
+    return sorted(d.name for d in DATA_DIR.iterdir() if d.is_dir() and any(d.glob("*.csv")))
 
-    df = pd.read_csv(WORDS_FILE)
-    expected = ["dutch", "arabic", "transliteration"]
-    for col in expected:
-        if col not in df.columns:
-            df[col] = ""
-    return df[expected].fillna("")
+
+WORD_COLUMNS = ["dutch", "arabic", "transliteration", "comment"]
+
+
+def load_category(category_dir: Path) -> pd.DataFrame:
+    frames = []
+    for csv_file in sorted(category_dir.glob("*.csv")):
+        df = pd.read_csv(csv_file)
+        for col in WORD_COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        frames.append(df[WORD_COLUMNS])
+    if not frames:
+        return pd.DataFrame(columns=WORD_COLUMNS)
+    return pd.concat(frames, ignore_index=True).fillna("")
+
+
+def load_words(category: str = "Alle woorden") -> pd.DataFrame:
+    if category == "Alle woorden":
+        frames = [load_category(d) for d in sorted(DATA_DIR.iterdir()) if d.is_dir()]
+        if not frames:
+            return pd.DataFrame(columns=WORD_COLUMNS)
+        combined = pd.concat(frames, ignore_index=True).fillna("")
+        return combined.drop_duplicates(subset=["dutch", "arabic"], keep="first").reset_index(drop=True)
+
+    return load_category(DATA_DIR / category)
 
 
 def get_stats() -> dict[str, dict[str, int]]:
@@ -299,15 +320,18 @@ st.title(APP_TITLE)
 st.caption("Train slim: woorden met meer fouten komen vaker terug.")
 st.link_button("Bekijk op GitHub", REPO_URL)
 
-words_df = load_words()
+words_df = load_words(category)
 if words_df.empty:
-    st.error("Geen woorden gevonden. Voeg woorden toe in data/words.csv")
+    st.error("Geen woorden gevonden voor deze categorie.")
     st.stop()
 
 ensure_stats_for_words(words_df)
 
 with st.sidebar:
     st.subheader("Instellingen")
+    categories = discover_categories()
+    category = st.selectbox("Woordenlijst", ["Alle woorden"] + categories)
+
     mode = st.selectbox(
         "Oefenmodus",
         ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Luisteren -> Nederlands"],
@@ -352,9 +376,11 @@ if (
     or st.session_state.get("question", {}).get("mode") != mode
     or st.session_state.get("question", {}).get("answer_style")
     != st.session_state.answer_style
+    or st.session_state.get("current_category") != category
 ):
     st.session_state.question = build_question(words_df, mode)
     st.session_state.answered = False
+    st.session_state.current_category = category
 
 question = st.session_state.question
 
@@ -488,6 +514,9 @@ with col_main:
                 f"Niet goed. Correct was: {question['correct']} "
                 f"({question['meta'].get('transliteration', '')})"
             )
+        comment = question["meta"].get("comment", "")
+        if comment:
+            st.info(f"💡 {comment}")
 
     if st.session_state.get("answered") and trigger_auto_advance:
         delay_seconds = (
