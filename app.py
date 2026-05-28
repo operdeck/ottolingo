@@ -5,10 +5,24 @@ import random
 import subprocess
 import tempfile
 import time
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+
+from srs import (
+    due_words,
+    get_word_state,
+    is_due,
+    is_new,
+    list_users,
+    load_progress,
+    new_words,
+    save_progress,
+    sm2_update,
+    update_streak,
+)
 
 APP_TITLE = "Ottolingo - Arabisch Oefenen"
 DATA_DIR = Path(__file__).parent / "data"
@@ -16,6 +30,7 @@ REPO_URL = "https://github.com/operdeck/ottolingo"
 DEFAULT_ARABIC_VOICE = "Majed"
 AUTO_ADVANCE_DELAY_CORRECT_SECONDS = 1.0
 AUTO_ADVANCE_DELAY_WRONG_SECONDS = 1.8
+DEFAULT_NEW_WORDS_PER_SESSION = 7
 
 
 st.set_page_config(page_title=APP_TITLE, page_icon="📘", layout="wide")
@@ -123,7 +138,7 @@ def discover_categories() -> list[str]:
     return sorted(d.name for d in DATA_DIR.iterdir() if d.is_dir() and any(d.glob("*.csv")))
 
 
-WORD_COLUMNS = ["dutch", "arabic", "transliteration", "comment"]
+WORD_COLUMNS = ["dutch", "arabic", "transliteration", "comment", "root", "example", "example_nl"]
 
 
 def load_category(category_dir: Path) -> pd.DataFrame:
@@ -150,41 +165,67 @@ def load_words(category: str = "Alle woorden") -> pd.DataFrame:
     return load_category(DATA_DIR / category)
 
 
+def get_progress() -> dict:
+    user = st.session_state.get("current_user", "")
+    cache_key = f"progress_{user}"
+    if cache_key not in st.session_state:
+        st.session_state[cache_key] = load_progress(user)
+    return st.session_state[cache_key]
+
+
 def get_stats() -> dict[str, dict[str, int]]:
-    if "stats" not in st.session_state:
-        st.session_state.stats = {}
-    return st.session_state.stats
+    progress = get_progress()
+    stats = {}
+    for key, state in progress["words"].items():
+        stats[key] = {"right": state["right"], "wrong": state["wrong"]}
+    return stats
 
 
 def ensure_stats_for_words(df: pd.DataFrame) -> None:
-    stats = get_stats()
+    progress = get_progress()
     for key in df["dutch"].tolist():
-        if key not in stats:
-            stats[key] = {"right": 0, "wrong": 0}
+        get_word_state(progress, key)
 
 
 def weighted_pick(df: pd.DataFrame) -> pd.Series:
-    stats = get_stats()
-    weights = []
+    progress = get_progress()
     rows = df.to_dict("records")
+    all_keys = [r["dutch"] for r in rows]
 
+    due = set(due_words(progress, all_keys))
+    new_pool = set(new_words(progress, all_keys))
+
+    max_new = st.session_state.get("new_words_budget", DEFAULT_NEW_WORDS_PER_SESSION)
+    new_introduced = st.session_state.get("new_introduced_today", 0)
+
+    weights = []
     for row in rows:
-        item = stats.get(row["dutch"], {"right": 0, "wrong": 0})
-        total = item["right"] + item["wrong"]
-        if total == 0:
+        key = row["dutch"]
+        state = get_word_state(progress, key)
+
+        if key in due:
+            total = state["right"] + state["wrong"]
+            error_rate = state["wrong"] / max(total, 1)
+            w = 5.0 + error_rate * 5.0
+        elif key in new_pool and new_introduced < max_new:
             w = 2.0
+        elif key in new_pool:
+            w = 0.1
         else:
-            error_rate = item["wrong"] / total
-            w = 1.0 + error_rate * 3.0 + item["wrong"] * 0.5
-        weights.append(max(w, 0.8))
+            w = 0.5
+        weights.append(w)
 
     if st.session_state.get("last_word"):
         for i, row in enumerate(rows):
             if row["dutch"] == st.session_state.last_word and len(rows) > 1:
-                weights[i] = max(0.2, weights[i] * 0.2)
+                weights[i] = max(0.05, weights[i] * 0.1)
 
     chosen = random.choices(rows, weights=weights, k=1)[0]
     st.session_state.last_word = chosen["dutch"]
+
+    if chosen["dutch"] in new_pool:
+        st.session_state.new_introduced_today = new_introduced + 1
+
     return pd.Series(chosen)
 
 
@@ -348,34 +389,71 @@ def grade_answer(question: dict, answer: str) -> bool:
 
 
 def get_confusions() -> dict[str, dict[str, int]]:
-    if "confusions" not in st.session_state:
-        st.session_state.confusions = {}
-    return st.session_state.confusions
+    progress = get_progress()
+    confusions = {}
+    for key, state in progress["words"].items():
+        if state.get("confusions"):
+            confusions[key] = state["confusions"]
+    return confusions
 
 
 def record_confusion(word_key: str, confused_with: str) -> None:
-    confusions = get_confusions()
-    if word_key not in confusions:
-        confusions[word_key] = {}
-    confusions[word_key][confused_with] = confusions[word_key].get(confused_with, 0) + 1
+    progress = get_progress()
+    state = get_word_state(progress, word_key)
+    if "confusions" not in state:
+        state["confusions"] = {}
+    state["confusions"][confused_with] = state["confusions"].get(confused_with, 0) + 1
+    save_progress(progress)
 
 
 def update_stats(word_key: str, correct: bool) -> None:
-    stats = get_stats()
-    if word_key not in stats:
-        stats[word_key] = {"right": 0, "wrong": 0}
-
-    if correct:
-        stats[word_key]["right"] += 1
-    else:
-        stats[word_key]["wrong"] += 1
+    progress = get_progress()
+    state = get_word_state(progress, word_key)
+    quality = 4 if correct else 1
+    sm2_update(state, quality)
+    update_streak(progress, date.today().isoformat())
+    save_progress(progress)
 
 
 st.title(APP_TITLE)
 st.caption("Train slim: woorden met meer fouten komen vaker terug.")
 st.link_button("Bekijk op GitHub", REPO_URL)
 
+# --- User selection ---
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+
+if st.session_state.current_user is None:
+    known_users = list_users()
+    options = known_users + ["+ Nieuwe gebruiker", "Anoniem (niet opslaan)"]
+    choice = st.selectbox("Wie ben je?", options, index=None, placeholder="Kies je naam...")
+
+    if choice == "+ Nieuwe gebruiker":
+        new_name = st.text_input("Hoe heet je?", placeholder="Voer je naam in")
+        if st.button("Start", disabled=not new_name.strip()):
+            st.session_state.current_user = new_name.strip()
+            st.rerun()
+    elif choice == "Anoniem (niet opslaan)":
+        st.session_state.current_user = ""
+        st.rerun()
+    elif choice:
+        st.session_state.current_user = choice
+        st.rerun()
+    else:
+        st.stop()
+
+active_user = st.session_state.current_user
+
 with st.sidebar:
+    if active_user:
+        st.caption(f"Ingelogd als **{active_user}**")
+    else:
+        st.caption("Anonieme sessie (niet opgeslagen)")
+    if st.button("Wissel gebruiker", type="tertiary"):
+        st.session_state.current_user = None
+        st.rerun()
+
+    st.markdown("---")
     st.subheader("Woordenlijst")
     categories = discover_categories()
     category = st.selectbox("Woordenlijst", ["Alle woorden"] + categories, label_visibility="collapsed")
@@ -383,7 +461,7 @@ with st.sidebar:
     st.subheader("Oefenmodus")
     mode = st.selectbox(
         "Oefenmodus",
-        ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Luisteren -> Nederlands"],
+        ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Schrift oefenen"],
         label_visibility="collapsed",
     )
 
@@ -417,6 +495,32 @@ if words_df.empty:
 
 ensure_stats_for_words(words_df)
 
+progress = get_progress()
+all_word_keys = words_df["dutch"].tolist()
+due_list = due_words(progress, all_word_keys)
+new_list = new_words(progress, all_word_keys)
+streak_count = progress["streak"]["count"]
+
+with st.sidebar:
+    st.markdown("---")
+    st.subheader("Vandaag")
+    col_due, col_new = st.columns(2)
+    col_due.metric("Te herhalen", len(due_list))
+    col_new.metric("Nieuw", f"{min(len(new_list), DEFAULT_NEW_WORDS_PER_SESSION)}")
+    if streak_count > 0:
+        st.caption(f"🔥 {streak_count} {'dag' if streak_count == 1 else 'dagen'} op rij")
+
+    if "session_start" not in st.session_state:
+        st.session_state.session_start = time.time()
+    elapsed_min = int((time.time() - st.session_state.session_start) / 60)
+    target_min = 15
+    progress_frac = min(elapsed_min / target_min, 1.0)
+    st.progress(progress_frac, text=f"⏱ {elapsed_min} / {target_min} min")
+    if 15 <= elapsed_min < 25:
+        st.success("Goed gedaan! Doel bereikt. Morgen weer?")
+    elif elapsed_min >= 25:
+        st.info("Overweeg een pauze — kort en vaak is effectiever.")
+
 st.markdown(
     f"""
 <style>
@@ -427,6 +531,137 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+if mode == "Schrift oefenen":
+    alphabet_file = DATA_DIR / "Alfabet" / "letters.csv"
+    if alphabet_file.exists():
+        letters_df = pd.read_csv(alphabet_file)
+    else:
+        st.error("Alfabetbestand niet gevonden.")
+        st.stop()
+
+    def build_alpha_question(letters_df: pd.DataFrame) -> dict:
+        letter = letters_df.sample(1).iloc[0]
+        letter_data = letter.to_dict()
+        exercise_type = random.choice(["letter_to_sound", "sound_to_letter", "position"])
+
+        if exercise_type == "letter_to_sound":
+            correct = letter_data["transliteration"]
+            pool = [r["transliteration"] for _, r in letters_df.iterrows() if r["transliteration"] != correct]
+            random.shuffle(pool)
+            options = [correct] + pool[:4]
+            random.shuffle(options)
+        elif exercise_type == "sound_to_letter":
+            correct = letter_data["isolated"]
+            pool = [r["isolated"] for _, r in letters_df.iterrows() if r["isolated"] != correct]
+            random.shuffle(pool)
+            options = [correct] + pool[:4]
+            random.shuffle(options)
+        else:
+            positions = {"initial": "begin", "medial": "midden", "final": "eind"}
+            pos_key = random.choice(list(positions.keys()))
+            correct = letter_data[pos_key]
+            pool = [r[pos_key] for _, r in letters_df.iterrows() if r[pos_key] != correct]
+            random.shuffle(pool)
+            options = [correct] + pool[:4]
+            random.shuffle(options)
+            letter_data["_pos_key"] = pos_key
+            letter_data["_pos_label"] = positions[pos_key]
+
+        return {"letter": letter_data, "type": exercise_type, "correct": correct, "options": options}
+
+    if (
+        "alpha_question" not in st.session_state
+        or st.session_state.get("alpha_mode") != mode
+    ):
+        st.session_state.alpha_mode = mode
+        st.session_state.alpha_answered = False
+        st.session_state.alpha_question = build_alpha_question(letters_df)
+
+    aq = st.session_state.alpha_question
+    letter_data = aq["letter"]
+    correct = aq["correct"]
+    options = aq["options"]
+
+    if aq["type"] in ("sound_to_letter", "position"):
+        st.markdown(
+            f"""<style>
+[data-testid="stMain"] [data-testid="stRadio"] label p,
+[data-testid="stMain"] [data-testid="stRadio"] label span,
+[data-testid="stMain"] [data-testid="stRadio"] label div {{
+    font-size: 2.5rem !important;
+    font-family: '{arabic_font}', 'Amiri', serif !important;
+    direction: rtl !important;
+}}
+</style>""",
+            unsafe_allow_html=True,
+        )
+
+    col_main, col_side = st.columns([2.0, 1.2], gap="large")
+    with col_main:
+        st.markdown("<span class='badge'>Schrift oefenen</span>", unsafe_allow_html=True)
+
+        if aq["type"] == "letter_to_sound":
+            st.markdown(f"<div class='arabic' style='font-size:4rem'>{letter_data['isolated']}</div>", unsafe_allow_html=True)
+            st.markdown("<div class='prompt-title'>Welke klank hoort bij deze letter?</div>", unsafe_allow_html=True)
+
+        elif aq["type"] == "sound_to_letter":
+            st.markdown(f"<div class='prompt-title'>Welke letter maakt de klank: <b>{letter_data['transliteration']}</b> ({letter_data['name']})?</div>", unsafe_allow_html=True)
+
+        else:  # position
+            pos_label = letter_data.get("_pos_label", "")
+            st.markdown(f"<div class='prompt-title'>Hoe ziet <b>{letter_data['name']}</b> ({letter_data['isolated']}) eruit aan het <b>{pos_label}</b> van een woord?</div>", unsafe_allow_html=True)
+
+        qid = st.session_state.get("alpha_qid", 0)
+        selected = st.radio("Kies", options, index=None, key=f"alpha_{qid}", label_visibility="collapsed")
+
+        if selected:
+            if aq["type"] == "sound_to_letter":
+                speak_text = selected
+            else:
+                speak_text = letter_data["isolated"]
+            spoken_key = f"alpha_{qid}:{selected}"
+            if st.session_state.get("alpha_last_spoken") != spoken_key:
+                audio_payload = macos_tts_audio(speak_text, voice=selected_arabic_voice)
+                if audio_payload:
+                    audio_bytes, audio_format = audio_payload
+                    st.audio(audio_bytes, format=audio_format, autoplay=True)
+                    st.session_state.alpha_last_spoken = spoken_key
+
+        if st.button("Controleer", type="primary", disabled=st.session_state.alpha_answered, key="alpha_check"):
+            if selected is None:
+                st.warning("Kies eerst een antwoord.")
+            else:
+                is_correct = selected == correct
+                st.session_state.alpha_answered = True
+                st.session_state.alpha_last_result = is_correct
+
+        if st.session_state.get("alpha_answered"):
+            if st.session_state.get("alpha_last_result"):
+                st.success("Goed gedaan!")
+            else:
+                st.error(f"Niet goed. Correct was: {correct}")
+            if letter_data.get("comment"):
+                st.info(f"💡 {letter_data['comment']}")
+
+        if st.button("Volgende letter", key="alpha_next"):
+            st.session_state.alpha_question = build_alpha_question(letters_df)
+            st.session_state.alpha_answered = False
+            st.session_state.alpha_qid = qid + 1
+            st.rerun()
+
+    with col_side:
+        st.subheader("Alfabet overzicht")
+        st.dataframe(
+            letters_df[["isolated", "name", "transliteration"]].rename(
+                columns={"isolated": "Letter", "name": "Naam", "transliteration": "Klank"}
+            ),
+            use_container_width=True,
+            hide_index=True,
+            height=400,
+        )
+
+    st.stop()
 
 if (
     "question" not in st.session_state
@@ -457,21 +692,6 @@ if question["mode"] == "Nederlands -> Arabisch":
 """,
         unsafe_allow_html=True,
     )
-elif question["mode"] == "Arabisch -> Nederlands":
-    st.markdown(
-        """
-<style>
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {
-    font-size: 1.35rem !important;
-    direction: ltr !important;
-    text-align: left !important;
-}
-</style>
-""",
-        unsafe_allow_html=True,
-    )
 else:
     st.markdown(
         """
@@ -479,7 +699,7 @@ else:
 [data-testid="stMain"] [data-testid="stRadio"] label p,
 [data-testid="stMain"] [data-testid="stRadio"] label span,
 [data-testid="stMain"] [data-testid="stRadio"] label div {
-    font-size: 1.5rem !important;
+    font-size: 1.35rem !important;
     direction: ltr !important;
     text-align: left !important;
 }
@@ -499,22 +719,16 @@ with col_main:
 
     qid = st.session_state.get("qid", 0)
 
-    if question["mode"] == "Luisteren -> Nederlands":
+
+    if question["mode"] == "Arabisch -> Nederlands":
         audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=selected_arabic_voice)
         if audio_payload:
             audio_bytes, audio_format = audio_payload
             st.audio(audio_bytes, format=audio_format)
-        else:
-            st.info("Audio kon niet gegenereerd worden. Controleer of het macOS commando 'say' werkt.")
-
-    if question["mode"] == "Arabisch -> Nederlands":
-        if st.button("Spreek Arabisch woord uit", key=f"speak_ar_nl_{qid}"):
-            audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=selected_arabic_voice)
-            if audio_payload:
-                audio_bytes, audio_format = audio_payload
-                st.audio(audio_bytes, format=audio_format, autoplay=True)
-            else:
-                st.info("Audio kon niet gegenereerd worden. Controleer of het macOS commando 'say' werkt.")
+        if st.button("Toon losse letters", key=f"split_{qid}"):
+            arabic_word = question["meta"]["arabic"]
+            spaced = "  ".join(arabic_word)
+            st.markdown(f"<div class='arabic' style='letter-spacing:0.3em'>{spaced}</div>", unsafe_allow_html=True)
 
     trigger_auto_advance = False
 
@@ -576,6 +790,21 @@ with col_main:
         comment = question["meta"].get("comment", "")
         if comment:
             st.info(f"💡 {comment}")
+        root = question["meta"].get("root", "")
+        if root:
+            related = words_df[words_df["root"] == root]
+            if len(related) > 1:
+                others = related[related["dutch"] != question["word_key"]]
+                if not others.empty:
+                    family = " · ".join(f"{r['arabic']} ({r['dutch']})" for _, r in others.iterrows())
+                    st.caption(f"Wortel [{root}]: {family}")
+        example = question["meta"].get("example", "")
+        if example:
+            example_nl = question["meta"].get("example_nl", "")
+            ex_text = f"📝 {example}"
+            if example_nl:
+                ex_text += f" — {example_nl}"
+            st.caption(ex_text)
 
     if st.session_state.get("answered") and trigger_auto_advance:
         delay_seconds = (
