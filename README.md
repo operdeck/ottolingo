@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.svg" alt="Ottolingo - Leer Arabisch & Japans" width="100%"/>
+</p>
+
 # Ottolingo
 
 Visueel oefenprogramma voor macOS met praktisch vocabulaire voor reizigers en dagelijks gebruik. Ondersteunt meerdere talen. Gebaseerd op taalverwervingsonderzoek (spaced repetition, active recall, optimale sessielengte).
