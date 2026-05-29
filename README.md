@@ -93,4 +93,4 @@ Extra stemmen installeren: Systeeminstellingen → Toegankelijkheid → Gesproke
 - Sneltoetsen 1-5 voor meerkeuze
 - Time challenge: zoveel mogelijk goed binnen 60/120 seconden
 - Schrijfoefening: doeltaal typen vanaf transliteratie of audio
-- Meer contextsinnen invullen voor alle categorieën
+- Meer voorbeeldzinnen invullen voor alle categorieën
