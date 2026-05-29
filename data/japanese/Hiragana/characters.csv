@@ -1,0 +1,47 @@
+name,romaji,character,comment
+a,a,あ,klinker
+i,i,い,klinker
+u,u,う,klinker
+e,e,え,klinker
+o,o,お,klinker
+ka,ka,か,k-rij
+ki,ki,き,k-rij
+ku,ku,く,k-rij
+ke,ke,け,k-rij
+ko,ko,こ,k-rij
+sa,sa,さ,s-rij
+shi,shi,し,s-rij; klinkt als 'shi' niet 'si'
+su,su,す,s-rij
+se,se,せ,s-rij
+so,so,そ,s-rij
+ta,ta,た,t-rij
+chi,chi,ち,t-rij; klinkt als 'chi' niet 'ti'
+tsu,tsu,つ,t-rij; klinkt als 'tsu' niet 'tu'
+te,te,て,t-rij
+to,to,と,t-rij
+na,na,な,n-rij
+ni,ni,に,n-rij
+nu,nu,ぬ,n-rij
+ne,ne,ね,n-rij
+no,no,の,n-rij
+ha,ha,は,h-rij; als deeltje uitgesproken als 'wa'
+hi,hi,ひ,h-rij
+fu,fu,ふ,h-rij; tussen 'fu' en 'hu'
+he,he,へ,h-rij; als deeltje uitgesproken als 'e'
+ho,ho,ほ,h-rij
+ma,ma,ま,m-rij
+mi,mi,み,m-rij
+mu,mu,む,m-rij
+me,me,め,m-rij
+mo,mo,も,m-rij
+ya,ya,や,y-rij
+yu,yu,ゆ,y-rij
+yo,yo,よ,y-rij
+ra,ra,ら,r-rij; tussen 'r' en 'l'
+ri,ri,り,r-rij
+ru,ru,る,r-rij
+re,re,れ,r-rij
+ro,ro,ろ,r-rij
+wa,wa,わ,w-rij
+wo,wo,を,w-rij; alleen als deeltje gebruikt
+n,n,ん,nasale 'n'; enige medeklinker zonder klinker

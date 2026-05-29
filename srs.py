@@ -47,7 +47,7 @@ def load_progress(user: str = "") -> dict:
 
 
 def _default_progress(user: str = "") -> dict:
-    return {"user": user, "words": {}, "sessions": [], "streak": {"last_date": "", "count": 0}}
+    return {"user": user, "language": "", "words": {}, "sessions": [], "streak": {"last_date": "", "count": 0}}
 
 
 def save_progress(data: dict) -> None:
@@ -138,3 +138,96 @@ def update_streak(progress: dict, today: str) -> None:
     elif streak["last_date"] != today:
         streak["count"] = 1
     streak["last_date"] = today
+
+
+def get_language(user: str) -> str:
+    if not user:
+        return ""
+    path = _user_file(user)
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return data.get("language", "")
+        except (json.JSONDecodeError, OSError):
+            return ""
+    return ""
+
+
+def save_language(user: str, language: str) -> None:
+    if not user:
+        return
+    _ensure_dir()
+    path = _user_file(user)
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = _default_progress(user)
+    else:
+        data = _default_progress(user)
+    data["language"] = language
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def get_words_key(language: str) -> str:
+    if language:
+        return f"words_{language}"
+    return "words"
+
+
+def load_progress_for_language(user: str, language: str) -> dict:
+    _ensure_dir()
+    if not user:
+        return _default_progress()
+    path = _user_file(user)
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = _default_progress(user)
+    else:
+        data = _default_progress(user)
+
+    words_key = get_words_key(language)
+    # Migrate: if old "words" key exists and no language-specific key yet, move it
+    if words_key not in data and "words" in data and data["words"] and language:
+        old_lang = data.get("language", "arabic")
+        old_key = get_words_key(old_lang)
+        if old_key not in data:
+            data[old_key] = data["words"]
+        data["words"] = {}
+
+    words = data.get(words_key, {})
+    return {
+        "user": user,
+        "language": language,
+        "words": words,
+        "sessions": data.get("sessions", []),
+        "streak": data.get("streak", {"last_date": "", "count": 0}),
+    }
+
+
+def save_progress_for_language(data: dict) -> None:
+    user = data.get("user", "")
+    if not user:
+        return
+    _ensure_dir()
+    path = _user_file(user)
+
+    if path.exists():
+        try:
+            full_data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            full_data = _default_progress(user)
+    else:
+        full_data = _default_progress(user)
+
+    language = data.get("language", "")
+    words_key = get_words_key(language)
+    full_data["user"] = user
+    full_data["language"] = language
+    full_data[words_key] = data.get("words", {})
+    full_data["streak"] = data.get("streak", {"last_date": "", "count": 0})
+    full_data["sessions"] = data.get("sessions", [])
+
+    path.write_text(json.dumps(full_data, ensure_ascii=False, indent=2), encoding="utf-8")

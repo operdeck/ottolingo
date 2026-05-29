@@ -11,23 +11,24 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from languages import DEFAULT_LANGUAGE, LANGUAGES, get_lang_config
 from srs import (
     due_words,
+    get_language,
     get_word_state,
     is_due,
     is_new,
     list_users,
-    load_progress,
+    load_progress_for_language,
     new_words,
-    save_progress,
+    save_language,
+    save_progress_for_language,
     sm2_update,
     update_streak,
 )
 
-APP_TITLE = "Ottolingo - Arabisch Oefenen"
-DATA_DIR = Path(__file__).parent / "data"
+APP_TITLE = "Ottolingo"
 REPO_URL = "https://github.com/operdeck/ottolingo"
-DEFAULT_ARABIC_VOICE = "Majed"
 AUTO_ADVANCE_DELAY_CORRECT_SECONDS = 1.0
 AUTO_ADVANCE_DELAY_WRONG_SECONDS = 1.8
 DEFAULT_NEW_WORDS_PER_SESSION = 7
@@ -38,7 +39,7 @@ st.set_page_config(page_title=APP_TITLE, page_icon="📘", layout="wide")
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Amiri:wght@400;700&family=Cairo:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Noto+Sans+Arabic:wght@400;700&family=Tajawal:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Amiri:wght@400;700&family=Cairo:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Noto+Sans+Arabic:wght@400;700&family=Tajawal:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap');
 
 :root {
     --bg-1: #fff4e6;
@@ -92,10 +93,23 @@ html, body, [class*="css"] {
     margin: .4rem 0;
 }
 
-.arabic {
+.target-text {
+    font-size: 2rem;
+    line-height: 1.4;
+}
+
+.target-text-rtl {
     font-family: 'Amiri', serif;
     direction: rtl;
     text-align: right;
+    font-size: 2rem;
+    line-height: 1.4;
+}
+
+.target-text-ltr {
+    font-family: 'Noto Sans JP', sans-serif;
+    direction: ltr;
+    text-align: left;
     font-size: 2rem;
     line-height: 1.4;
 }
@@ -115,7 +129,7 @@ html, body, [class*="css"] {
 [data-testid="stMain"] [data-testid="stRadio"] label div {
     font-weight: 700 !important;
     line-height: 1.4 !important;
-    font-family: 'Manrope', 'Amiri', sans-serif !important;
+    font-family: 'Manrope', 'Amiri', 'Noto Sans JP', sans-serif !important;
 }
 
 .answer-area [data-testid="stTextInput"] input {
@@ -132,44 +146,56 @@ def normalize(text: str) -> str:
     return " ".join((text or "").strip().lower().split())
 
 
-def discover_categories() -> list[str]:
-    if not DATA_DIR.exists():
+def discover_categories(lang_config: dict) -> list[str]:
+    data_dir = lang_config["data_dir"]
+    if not data_dir.exists():
         return []
-    return sorted(d.name for d in DATA_DIR.iterdir() if d.is_dir() and any(d.glob("*.csv")))
+    alphabet_dir = lang_config["alphabet_dir"]
+    return sorted(
+        d.name for d in data_dir.iterdir()
+        if d.is_dir() and d.name != alphabet_dir and any(d.glob("*.csv"))
+    )
 
 
-WORD_COLUMNS = ["dutch", "arabic", "transliteration", "comment", "root", "example", "example_nl"]
-
-
-def load_category(category_dir: Path) -> pd.DataFrame:
+def load_category(category_dir: Path, word_columns: list[str]) -> pd.DataFrame:
     frames = []
     for csv_file in sorted(category_dir.glob("*.csv")):
         df = pd.read_csv(csv_file)
-        for col in WORD_COLUMNS:
+        for col in word_columns:
             if col not in df.columns:
                 df[col] = ""
-        frames.append(df[WORD_COLUMNS])
+        frames.append(df[word_columns])
     if not frames:
-        return pd.DataFrame(columns=WORD_COLUMNS)
+        return pd.DataFrame(columns=word_columns)
     return pd.concat(frames, ignore_index=True).fillna("")
 
 
-def load_words(category: str = "Alle woorden") -> pd.DataFrame:
-    if category == "Alle woorden":
-        frames = [load_category(d) for d in sorted(DATA_DIR.iterdir()) if d.is_dir()]
-        if not frames:
-            return pd.DataFrame(columns=WORD_COLUMNS)
-        combined = pd.concat(frames, ignore_index=True).fillna("")
-        return combined.drop_duplicates(subset=["dutch", "arabic"], keep="first").reset_index(drop=True)
+def load_words(lang_config: dict, category: str = "Alle woorden") -> pd.DataFrame:
+    data_dir = lang_config["data_dir"]
+    word_columns = lang_config["word_columns"]
+    target_col = lang_config["target_col"]
+    alphabet_dir = lang_config["alphabet_dir"]
 
-    return load_category(DATA_DIR / category)
+    if category == "Alle woorden":
+        frames = [
+            load_category(d, word_columns)
+            for d in sorted(data_dir.iterdir())
+            if d.is_dir() and d.name != alphabet_dir
+        ]
+        if not frames:
+            return pd.DataFrame(columns=word_columns)
+        combined = pd.concat(frames, ignore_index=True).fillna("")
+        return combined.drop_duplicates(subset=["dutch", target_col], keep="first").reset_index(drop=True)
+
+    return load_category(data_dir / category, word_columns)
 
 
 def get_progress() -> dict:
     user = st.session_state.get("current_user", "")
-    cache_key = f"progress_{user}"
+    language = st.session_state.get("current_language", DEFAULT_LANGUAGE)
+    cache_key = f"progress_{user}_{language}"
     if cache_key not in st.session_state:
-        st.session_state[cache_key] = load_progress(user)
+        st.session_state[cache_key] = load_progress_for_language(user, language)
     return st.session_state[cache_key]
 
 
@@ -266,36 +292,41 @@ def pick_confusable_options(
     return top_confusable[:n]
 
 
-def build_question(df: pd.DataFrame, mode: str) -> dict:
+def build_question(df: pd.DataFrame, mode: str, lang_config: dict) -> dict:
     answer_style = st.session_state.get("answer_style", "Meerkeuze")
     row = weighted_pick(df)
+    target_col = lang_config["target_col"]
+    translit_col = lang_config["translit_col"]
+    lang_name = lang_config["name"]
 
-    if mode == "Nederlands -> Arabisch":
-        pool = [x for x in df["arabic"].tolist() if x != row["arabic"]]
-        distractors = pick_confusable_options(row["arabic"], pool, row["dutch"])
-        options = [row["arabic"]] + distractors
+    mode_labels = lang_config["mode_labels"]
+
+    if mode == mode_labels["to_target"]:
+        pool = [x for x in df[target_col].tolist() if x != row[target_col]]
+        distractors = pick_confusable_options(row[target_col], pool, row["dutch"])
+        options = [row[target_col]] + distractors
         random.shuffle(options)
         return {
             "mode": mode,
-            "prompt": f"Wat is het Arabisch voor: {row['dutch']}?",
-            "prompt_ar": "",
-            "correct": row["arabic"],
-            "accepted": [normalize(row["arabic"]), normalize(row["transliteration"])],
+            "prompt": f"Wat is het {lang_name} voor: {row['dutch']}?",
+            "prompt_target": "",
+            "correct": row[target_col],
+            "accepted": [normalize(row[target_col]), normalize(row[translit_col])],
             "options": options,
             "word_key": row["dutch"],
             "meta": row.to_dict(),
             "answer_style": answer_style,
         }
 
-    if mode == "Arabisch -> Nederlands":
+    if mode == mode_labels["to_dutch"]:
         pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
         distractors = pick_confusable_options(row["dutch"], pool, row["dutch"])
         options = [row["dutch"]] + distractors
         random.shuffle(options)
         return {
             "mode": mode,
-            "prompt": "Welk Nederlands woord hoort bij dit Arabische woord?",
-            "prompt_ar": row["arabic"],
+            "prompt": f"Welk Nederlands woord hoort bij dit {lang_name}e woord?",
+            "prompt_target": row[target_col],
             "correct": row["dutch"],
             "accepted": [normalize(row["dutch"])],
             "options": options,
@@ -304,24 +335,10 @@ def build_question(df: pd.DataFrame, mode: str) -> dict:
             "answer_style": answer_style,
         }
 
-    # Luisteren -> Nederlands
-    pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
-    distractors = pick_confusable_options(row["dutch"], pool, row["dutch"])
-    options = [row["dutch"]] + distractors
-    return {
-        "mode": mode,
-        "prompt": "Luister en kies het juiste Nederlandse woord.",
-        "prompt_ar": row["arabic"],
-        "correct": row["dutch"],
-        "accepted": [normalize(row["dutch"])],
-        "options": options,
-        "word_key": row["dutch"],
-        "meta": row.to_dict(),
-        "answer_style": "Meerkeuze",
-    }
+    return {}
 
 
-def macos_tts_audio(text: str, voice: str = DEFAULT_ARABIC_VOICE) -> tuple[bytes, str] | None:
+def macos_tts_audio(text: str, voice: str = "Majed") -> tuple[bytes, str] | None:
     cache_dir = Path(tempfile.gettempdir()) / "ottolingo_tts"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -330,44 +347,28 @@ def macos_tts_audio(text: str, voice: str = DEFAULT_ARABIC_VOICE) -> tuple[bytes
     wav_path = cache_dir / f"{cache_key}.wav"
 
     if not aiff_path.exists():
-        cmd = [
-            "say",
-            "-v",
-            voice,
-            "-o",
-            str(aiff_path),
-            text,
-        ]
+        cmd = ["say", "-v", voice, "-o", str(aiff_path), text]
         try:
             subprocess.run(cmd, check=True, capture_output=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
             return None
 
     if not wav_path.exists():
-        convert_cmd = [
-            "afconvert",
-            "-f",
-            "WAVE",
-            "-d",
-            "LEI16",
-            str(aiff_path),
-            str(wav_path),
-        ]
+        convert_cmd = ["afconvert", "-f", "WAVE", "-d", "LEI16", str(aiff_path), str(wav_path)]
         try:
             subprocess.run(convert_cmd, check=True, capture_output=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
-            # Fallback to AIFF if conversion is unavailable.
             return aiff_path.read_bytes(), "audio/aiff"
 
     return wav_path.read_bytes(), "audio/wav"
 
 
 @st.cache_data(show_spinner=False)
-def list_macos_arabic_voices() -> list[str]:
+def list_macos_voices(voice_prefix: str, default_voice: str) -> list[str]:
     try:
         result = subprocess.run(["say", "-v", "?"], check=True, capture_output=True, text=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return [DEFAULT_ARABIC_VOICE]
+        return [default_voice]
 
     voices: list[str] = []
     for line in result.stdout.splitlines():
@@ -375,11 +376,11 @@ def list_macos_arabic_voices() -> list[str]:
         if len(parts) < 2:
             continue
         name, language = parts[0], parts[1]
-        if language.startswith("ar_"):
+        if language.startswith(voice_prefix):
             voices.append(name)
 
-    if DEFAULT_ARABIC_VOICE not in voices:
-        voices.append(DEFAULT_ARABIC_VOICE)
+    if default_voice not in voices:
+        voices.append(default_voice)
 
     return sorted(set(voices), key=str.lower)
 
@@ -403,7 +404,7 @@ def record_confusion(word_key: str, confused_with: str) -> None:
     if "confusions" not in state:
         state["confusions"] = {}
     state["confusions"][confused_with] = state["confusions"].get(confused_with, 0) + 1
-    save_progress(progress)
+    save_progress_for_language(progress)
 
 
 def update_stats(word_key: str, correct: bool) -> None:
@@ -412,9 +413,10 @@ def update_stats(word_key: str, correct: bool) -> None:
     quality = 4 if correct else 1
     sm2_update(state, quality)
     update_streak(progress, date.today().isoformat())
-    save_progress(progress)
+    save_progress_for_language(progress)
 
 
+# --- Page header ---
 st.title(APP_TITLE)
 st.caption("Train slim: woorden met meer fouten komen vaker terug.")
 st.link_button("Bekijk op GitHub", REPO_URL)
@@ -425,24 +427,32 @@ if "current_user" not in st.session_state:
 
 if st.session_state.current_user is None:
     known_users = list_users()
-    options = known_users + ["+ Nieuwe gebruiker", "Anoniem (niet opslaan)"]
-    choice = st.selectbox("Wie ben je?", options, index=None, placeholder="Kies je naam...")
 
-    if choice == "+ Nieuwe gebruiker":
-        new_name = st.text_input("Hoe heet je?", placeholder="Voer je naam in")
-        if st.button("Start", disabled=not new_name.strip()):
-            st.session_state.current_user = new_name.strip()
-            st.rerun()
-    elif choice == "Anoniem (niet opslaan)":
+    name = st.text_input("Wie ben je?", placeholder="Typ je naam (nieuw of bestaand)")
+
+    if known_users:
+        st.caption("Of kies een bestaande:")
+        for i, user in enumerate(known_users):
+            if st.button(user, key=f"user_{i}"):
+                st.session_state.current_user = user
+                st.rerun()
+
+    col_start, col_anon = st.columns(2)
+    if col_start.button("Start", type="primary", disabled=not name.strip()):
+        st.session_state.current_user = name.strip()
+        st.rerun()
+    if col_anon.button("Anoniem (niet opslaan)"):
         st.session_state.current_user = ""
         st.rerun()
-    elif choice:
-        st.session_state.current_user = choice
-        st.rerun()
-    else:
-        st.stop()
+
+    st.stop()
 
 active_user = st.session_state.current_user
+
+# Load saved language preference
+if "current_language" not in st.session_state:
+    saved_lang = get_language(active_user) if active_user else ""
+    st.session_state.current_language = saved_lang if saved_lang in LANGUAGES else DEFAULT_LANGUAGE
 
 with st.sidebar:
     if active_user:
@@ -451,44 +461,72 @@ with st.sidebar:
         st.caption("Anonieme sessie (niet opgeslagen)")
     if st.button("Wissel gebruiker", type="tertiary"):
         st.session_state.current_user = None
+        for key in list(st.session_state.keys()):
+            if key.startswith("progress_"):
+                del st.session_state[key]
         st.rerun()
 
     st.markdown("---")
+
+    # Language selection
+    st.subheader("Taal")
+    lang_options = list(LANGUAGES.keys())
+    lang_labels = [f"{LANGUAGES[k]['flag']} {LANGUAGES[k]['name']}" for k in lang_options]
+    current_lang_idx = lang_options.index(st.session_state.current_language)
+    selected_lang_label = st.selectbox(
+        "Taal", lang_labels, index=current_lang_idx, label_visibility="collapsed"
+    )
+    selected_lang = lang_options[lang_labels.index(selected_lang_label)]
+
+    if selected_lang != st.session_state.current_language:
+        st.session_state.current_language = selected_lang
+        if active_user:
+            save_language(active_user, selected_lang)
+        for key in list(st.session_state.keys()):
+            if key.startswith("progress_"):
+                del st.session_state[key]
+        for key in ["question", "alpha_question", "current_category"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
+
+    lang_config = get_lang_config(st.session_state.current_language)
+
+    st.markdown("---")
     st.subheader("Woordenlijst")
-    categories = discover_categories()
+    categories = discover_categories(lang_config)
     category = st.selectbox("Woordenlijst", ["Alle woorden"] + categories, label_visibility="collapsed")
 
     st.subheader("Oefenmodus")
     mode = st.selectbox(
         "Oefenmodus",
-        ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Schrift oefenen"],
+        lang_config["modes"],
         label_visibility="collapsed",
     )
 
     st.session_state.answer_style = st.radio("Antwoordtype", ["Meerkeuze", "Typen"], horizontal=True)
 
-    st.subheader("Arabisch lettertype")
-    arabic_font = st.selectbox(
-        "Arabisch lettertype",
-        ["Amiri", "Noto Naskh Arabic", "Noto Sans Arabic", "Cairo", "Tajawal"],
-        label_visibility="collapsed",
-    )
+    # Font selector (only for Arabic)
+    if lang_config["direction"] == "rtl":
+        st.subheader("Arabisch lettertype")
+        target_font = st.selectbox(
+            "Arabisch lettertype",
+            lang_config["fonts"],
+            label_visibility="collapsed",
+        )
+    else:
+        target_font = lang_config["fonts"][0]
 
-    st.subheader("Arabische stem")
-
-    all_voices = list_macos_arabic_voices()
-
+    # Voice selector
+    st.subheader(f"{lang_config['name']}e stem")
+    all_voices = list_macos_voices(lang_config["voice_prefix"], lang_config["default_voice"])
     default_voice_index = 0
-    if DEFAULT_ARABIC_VOICE in all_voices:
-        default_voice_index = all_voices.index(DEFAULT_ARABIC_VOICE)
+    if lang_config["default_voice"] in all_voices:
+        default_voice_index = all_voices.index(lang_config["default_voice"])
+    selected_voice = st.selectbox("Kies stem", all_voices, index=default_voice_index)
 
-    selected_arabic_voice = st.selectbox(
-        "Kies stem",
-        all_voices,
-        index=default_voice_index,
-    )
-
-words_df = load_words(category)
+# Load words
+words_df = load_words(lang_config, category)
 if words_df.empty:
     st.error("Geen woorden gevonden voor deze categorie.")
     st.stop()
@@ -521,39 +559,72 @@ with st.sidebar:
     elif elapsed_min >= 25:
         st.info("Overweeg een pauze — kort en vaak is effectiever.")
 
-st.markdown(
-    f"""
+# Dynamic font CSS for target language
+if lang_config["direction"] == "rtl":
+    st.markdown(
+        f"""
 <style>
-.arabic {{
-    font-family: '{arabic_font}', 'Amiri', serif !important;
+.target-text {{
+    font-family: '{target_font}', 'Amiri', serif !important;
+    direction: rtl !important;
+    text-align: right !important;
 }}
 </style>
 """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        f"""
+<style>
+.target-text {{
+    font-family: '{target_font}', 'Noto Sans JP', sans-serif !important;
+    direction: ltr !important;
+    text-align: left !important;
+}}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 
-if mode == "Schrift oefenen":
-    alphabet_file = DATA_DIR / "Alfabet" / "letters.csv"
-    if alphabet_file.exists():
-        letters_df = pd.read_csv(alphabet_file)
-    else:
-        st.error("Alfabetbestand niet gevonden.")
+# --- Script/Alphabet practice mode ---
+mode_labels = lang_config["mode_labels"]
+
+if mode == mode_labels["script"]:
+    alphabet_dir = lang_config["data_dir"] / lang_config["alphabet_dir"]
+    alphabet_files = list(alphabet_dir.glob("*.csv")) if alphabet_dir.exists() else []
+
+    if not alphabet_files:
+        st.error(f"{lang_config['alphabet_label']}bestand niet gevonden.")
         st.stop()
 
-    def build_alpha_question(letters_df: pd.DataFrame) -> dict:
+    letters_df = pd.read_csv(alphabet_files[0])
+
+    def build_alpha_question(letters_df: pd.DataFrame, lang_config: dict) -> dict:
         letter = letters_df.sample(1).iloc[0]
         letter_data = letter.to_dict()
-        exercise_type = random.choice(["letter_to_sound", "sound_to_letter", "position"])
+        translit_col = lang_config.get("translit_col", "transliteration")
+        # For Arabic: transliteration column in alphabet is "transliteration"
+        # For Japanese: it's "romaji"
+        alpha_translit = "transliteration" if "transliteration" in letters_df.columns else "romaji"
+        char_col = "isolated" if "isolated" in letters_df.columns else "character"
+
+        has_positions = lang_config["alphabet_has_positions"]
+
+        if has_positions:
+            exercise_type = random.choice(["letter_to_sound", "sound_to_letter", "position"])
+        else:
+            exercise_type = random.choice(["letter_to_sound", "sound_to_letter"])
 
         if exercise_type == "letter_to_sound":
-            correct = letter_data["transliteration"]
-            pool = [r["transliteration"] for _, r in letters_df.iterrows() if r["transliteration"] != correct]
+            correct = letter_data[alpha_translit]
+            pool = [r[alpha_translit] for _, r in letters_df.iterrows() if r[alpha_translit] != correct]
             random.shuffle(pool)
             options = [correct] + pool[:4]
             random.shuffle(options)
         elif exercise_type == "sound_to_letter":
-            correct = letter_data["isolated"]
-            pool = [r["isolated"] for _, r in letters_df.iterrows() if r["isolated"] != correct]
+            correct = letter_data[char_col]
+            pool = [r[char_col] for _, r in letters_df.iterrows() if r[char_col] != correct]
             random.shuffle(pool)
             options = [correct] + pool[:4]
             random.shuffle(options)
@@ -576,41 +647,57 @@ if mode == "Schrift oefenen":
     ):
         st.session_state.alpha_mode = mode
         st.session_state.alpha_answered = False
-        st.session_state.alpha_question = build_alpha_question(letters_df)
+        st.session_state.alpha_question = build_alpha_question(letters_df, lang_config)
 
     aq = st.session_state.alpha_question
     letter_data = aq["letter"]
     correct = aq["correct"]
     options = aq["options"]
 
+    char_col = "isolated" if "isolated" in letter_data else "character"
+    alpha_translit = "transliteration" if "transliteration" in letter_data else "romaji"
+
     if aq["type"] in ("sound_to_letter", "position"):
-        st.markdown(
-            f"""<style>
+        if lang_config["direction"] == "rtl":
+            st.markdown(
+                f"""<style>
 [data-testid="stMain"] [data-testid="stRadio"] label p,
 [data-testid="stMain"] [data-testid="stRadio"] label span,
 [data-testid="stMain"] [data-testid="stRadio"] label div {{
     font-size: 2.5rem !important;
-    font-family: '{arabic_font}', 'Amiri', serif !important;
+    font-family: '{target_font}', 'Amiri', serif !important;
     direction: rtl !important;
 }}
 </style>""",
-            unsafe_allow_html=True,
-        )
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"""<style>
+[data-testid="stMain"] [data-testid="stRadio"] label p,
+[data-testid="stMain"] [data-testid="stRadio"] label span,
+[data-testid="stMain"] [data-testid="stRadio"] label div {{
+    font-size: 2.5rem !important;
+    font-family: '{target_font}', 'Noto Sans JP', sans-serif !important;
+}}
+</style>""",
+                unsafe_allow_html=True,
+            )
 
     col_main, col_side = st.columns([2.0, 1.2], gap="large")
     with col_main:
-        st.markdown("<span class='badge'>Schrift oefenen</span>", unsafe_allow_html=True)
+        st.markdown(f"<span class='badge'>{lang_config['alphabet_label']} oefenen</span>", unsafe_allow_html=True)
 
         if aq["type"] == "letter_to_sound":
-            st.markdown(f"<div class='arabic' style='font-size:4rem'>{letter_data['isolated']}</div>", unsafe_allow_html=True)
-            st.markdown("<div class='prompt-title'>Welke klank hoort bij deze letter?</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='target-text' style='font-size:4rem'>{letter_data[char_col]}</div>", unsafe_allow_html=True)
+            st.markdown("<div class='prompt-title'>Welke klank hoort bij dit karakter?</div>", unsafe_allow_html=True)
 
         elif aq["type"] == "sound_to_letter":
-            st.markdown(f"<div class='prompt-title'>Welke letter maakt de klank: <b>{letter_data['transliteration']}</b> ({letter_data['name']})?</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='prompt-title'>Welk karakter maakt de klank: <b>{letter_data[alpha_translit]}</b> ({letter_data['name']})?</div>", unsafe_allow_html=True)
 
-        else:  # position
+        else:  # position (Arabic only)
             pos_label = letter_data.get("_pos_label", "")
-            st.markdown(f"<div class='prompt-title'>Hoe ziet <b>{letter_data['name']}</b> ({letter_data['isolated']}) eruit aan het <b>{pos_label}</b> van een woord?</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='prompt-title'>Hoe ziet <b>{letter_data['name']}</b> ({letter_data[char_col]}) eruit aan het <b>{pos_label}</b> van een woord?</div>", unsafe_allow_html=True)
 
         qid = st.session_state.get("alpha_qid", 0)
         selected = st.radio("Kies", options, index=None, key=f"alpha_{qid}", label_visibility="collapsed")
@@ -619,10 +706,10 @@ if mode == "Schrift oefenen":
             if aq["type"] == "sound_to_letter":
                 speak_text = selected
             else:
-                speak_text = letter_data["isolated"]
+                speak_text = letter_data[char_col]
             spoken_key = f"alpha_{qid}:{selected}"
             if st.session_state.get("alpha_last_spoken") != spoken_key:
-                audio_payload = macos_tts_audio(speak_text, voice=selected_arabic_voice)
+                audio_payload = macos_tts_audio(speak_text, voice=selected_voice)
                 if audio_payload:
                     audio_bytes, audio_format = audio_payload
                     st.audio(audio_bytes, format=audio_format, autoplay=True)
@@ -644,18 +731,18 @@ if mode == "Schrift oefenen":
             if letter_data.get("comment"):
                 st.info(f"💡 {letter_data['comment']}")
 
-        if st.button("Volgende letter", key="alpha_next"):
-            st.session_state.alpha_question = build_alpha_question(letters_df)
+        if st.button("Volgende", key="alpha_next"):
+            st.session_state.alpha_question = build_alpha_question(letters_df, lang_config)
             st.session_state.alpha_answered = False
             st.session_state.alpha_qid = qid + 1
             st.rerun()
 
     with col_side:
-        st.subheader("Alfabet overzicht")
+        st.subheader(f"{lang_config['alphabet_label']} overzicht")
+        display_cols = [char_col, "name", alpha_translit]
+        rename_map = {char_col: "Karakter", "name": "Naam", alpha_translit: "Klank"}
         st.dataframe(
-            letters_df[["isolated", "name", "transliteration"]].rename(
-                columns={"isolated": "Letter", "name": "Naam", "transliteration": "Klank"}
-            ),
+            letters_df[display_cols].rename(columns=rename_map),
             use_container_width=True,
             hide_index=True,
             height=400,
@@ -663,22 +750,23 @@ if mode == "Schrift oefenen":
 
     st.stop()
 
+# --- Word practice modes ---
 if (
     "question" not in st.session_state
     or st.session_state.get("question", {}).get("mode") != mode
-    or st.session_state.get("question", {}).get("answer_style")
-    != st.session_state.answer_style
+    or st.session_state.get("question", {}).get("answer_style") != st.session_state.answer_style
     or st.session_state.get("current_category") != category
 ):
-    st.session_state.question = build_question(words_df, mode)
+    st.session_state.question = build_question(words_df, mode, lang_config)
     st.session_state.answered = False
     st.session_state.current_category = category
 
 question = st.session_state.question
 
-if question["mode"] == "Nederlands -> Arabisch":
-    st.markdown(
-        f"""
+if mode == mode_labels["to_target"]:
+    if lang_config["direction"] == "rtl":
+        st.markdown(
+            f"""
 <style>
 [data-testid="stMain"] [data-testid="stRadio"] label p,
 [data-testid="stMain"] [data-testid="stRadio"] label span,
@@ -686,12 +774,26 @@ if question["mode"] == "Nederlands -> Arabisch":
     font-size: 2.25rem !important;
     direction: rtl !important;
     text-align: right !important;
-    font-family: '{arabic_font}', 'Amiri', 'Manrope', sans-serif !important;
+    font-family: '{target_font}', 'Amiri', 'Manrope', sans-serif !important;
 }}
 </style>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f"""
+<style>
+[data-testid="stMain"] [data-testid="stRadio"] label p,
+[data-testid="stMain"] [data-testid="stRadio"] label span,
+[data-testid="stMain"] [data-testid="stRadio"] label div {{
+    font-size: 2.25rem !important;
+    font-family: '{target_font}', 'Noto Sans JP', 'Manrope', sans-serif !important;
+}}
+</style>
+""",
+            unsafe_allow_html=True,
+        )
 else:
     st.markdown(
         """
@@ -714,21 +816,24 @@ with col_main:
     st.markdown(f"<span class='badge'>{question['mode']}</span>", unsafe_allow_html=True)
     st.markdown(f"<div class='prompt-title'>{question['prompt']}</div>", unsafe_allow_html=True)
 
-    if question["prompt_ar"]:
-        st.markdown(f"<div class='arabic'>{question['prompt_ar']}</div>", unsafe_allow_html=True)
+    if question.get("prompt_target"):
+        st.markdown(f"<div class='target-text'>{question['prompt_target']}</div>", unsafe_allow_html=True)
 
     qid = st.session_state.get("qid", 0)
 
+    target_col = lang_config["target_col"]
 
-    if question["mode"] == "Arabisch -> Nederlands":
-        audio_payload = macos_tts_audio(question["meta"]["arabic"], voice=selected_arabic_voice)
+    if mode == mode_labels["to_dutch"]:
+        audio_payload = macos_tts_audio(question["meta"][target_col], voice=selected_voice)
         if audio_payload:
             audio_bytes, audio_format = audio_payload
             st.audio(audio_bytes, format=audio_format)
-        if st.button("Toon losse letters", key=f"split_{qid}"):
-            arabic_word = question["meta"]["arabic"]
-            spaced = "  ".join(arabic_word)
-            st.markdown(f"<div class='arabic' style='letter-spacing:0.3em'>{spaced}</div>", unsafe_allow_html=True)
+
+        # Show split characters (useful for Arabic and Japanese)
+        if st.button("Toon losse tekens", key=f"split_{qid}"):
+            target_word = question["meta"][target_col]
+            spaced = "  ".join(target_word)
+            st.markdown(f"<div class='target-text' style='letter-spacing:0.3em'>{spaced}</div>", unsafe_allow_html=True)
 
     trigger_auto_advance = False
 
@@ -742,10 +847,10 @@ with col_main:
             label_visibility="collapsed",
         )
 
-        if question["mode"] == "Nederlands -> Arabisch" and selected:
+        if mode == mode_labels["to_target"] and selected:
             spoken_key = f"{qid}:{selected}"
             if st.session_state.get("last_spoken_choice") != spoken_key:
-                audio_payload = macos_tts_audio(selected, voice=selected_arabic_voice)
+                audio_payload = macos_tts_audio(selected, voice=selected_voice)
                 if audio_payload:
                     audio_bytes, audio_format = audio_payload
                     st.audio(audio_bytes, format=audio_format, autoplay=True)
@@ -783,9 +888,10 @@ with col_main:
         if st.session_state.get("last_result"):
             st.success("Goed gedaan!")
         else:
+            translit = question["meta"].get(lang_config["translit_col"], "")
             st.error(
                 f"Niet goed. Correct was: {question['correct']} "
-                f"({question['meta'].get('transliteration', '')})"
+                f"({translit})"
             )
         comment = question["meta"].get("comment", "")
         if comment:
@@ -796,7 +902,7 @@ with col_main:
             if len(related) > 1:
                 others = related[related["dutch"] != question["word_key"]]
                 if not others.empty:
-                    family = " · ".join(f"{r['arabic']} ({r['dutch']})" for _, r in others.iterrows())
+                    family = " · ".join(f"{r[target_col]} ({r['dutch']})" for _, r in others.iterrows())
                     st.caption(f"Wortel [{root}]: {family}")
         example = question["meta"].get("example", "")
         if example:
@@ -813,13 +919,13 @@ with col_main:
             else AUTO_ADVANCE_DELAY_WRONG_SECONDS
         )
         time.sleep(delay_seconds)
-        st.session_state.question = build_question(words_df, mode)
+        st.session_state.question = build_question(words_df, mode, lang_config)
         st.session_state.answered = False
         st.session_state.qid = st.session_state.get("qid", 0) + 1
         st.rerun()
 
     if st.button("Volgend woord"):
-        st.session_state.question = build_question(words_df, mode)
+        st.session_state.question = build_question(words_df, mode, lang_config)
         st.session_state.answered = False
         st.session_state.qid = st.session_state.get("qid", 0) + 1
         st.rerun()

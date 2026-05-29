@@ -1,11 +1,16 @@
 [project]
 name = "ottolingo"
-version = "0.1.0"
-description = "Arabisch oefenprogramma voor beginners"
+version = "0.2.0"
+description = "Taal-oefenprogramma voor beginners (Arabisch, Japans)"
 requires-python = ">=3.12"
 dependencies = [
   "streamlit>=1.37.0",
   "pandas>=2.2.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
 ]
 
 [tool.uv]
