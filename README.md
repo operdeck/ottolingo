@@ -22,12 +22,13 @@ Visueel oefenprogramma voor macOS met praktisch vocabulaire voor reizigers en da
 - **Spaced repetition (SM-2)**: woorden komen terug op wetenschappelijk optimale intervallen (1d, 6d, 15d, 35d...)
 - **Dagelijks budget**: max 7 nieuwe woorden per sessie, zodat reviews beheersbaar blijven
 - **Confusion matrix**: onthoudt welke woorden je verwart en gebruikt die als slimmere afleiders
-- **Schrift oefenen**: Arabisch alfabet (4 lettervarianten) of Hiragana (karakter ↔ klank)
+- **Schrift oefenen**: Arabisch alfabet (4 lettervarianten) of Hiragana (karakter ↔ klank); antwoord wordt meteen gecheckt na keuze, geen aparte "Controleer"-knop nodig; sessie-statistieken (% goed) zichtbaar naast het overzicht
+- **Slimme feedback**: bij een fout antwoord ga je niet automatisch verder — je leest de correctie en drukt zelf op "Volgend woord"; bij goed antwoord mét extra uitleg wacht de app iets langer voordat er verdergegaan wordt
 - **Woordfamilies**: toont verwante woorden via het Arabische wortelsysteem (k-t-b → kitaab, maktaba...)
 - **Contextsinnen**: voorbeeldzinnen bij woorden voor beter onthouden
-- **Sessie-timer**: moedigt korte dagelijkse sessies aan (15-20 min optimaal)
+- **Sessie-statistieken & timer**: te herhalen, nieuw, streak en timer compact rechtsboven in de header — kost geen extra verticale ruimte
 - Streak-teller: houdt bij hoeveel dagen op rij je oefent
-- Commentaar bij woorden toont grammaticale context (geslacht, dialect, culturele noot)
+- Commentaar bij woorden toont grammaticale context (geslacht, dialect, culturele noot); correct lettertype gebruikt in foutmeldingen
 - Keuze uit lettertypen per taal (Arabisch: Amiri, Noto Naskh, Cairo, etc.)
 - Voortgang wordt persistent opgeslagen per gebruiker (~/.ottolingo/)
 

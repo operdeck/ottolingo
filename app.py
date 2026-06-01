@@ -417,9 +417,9 @@ def update_stats(word_key: str, correct: bool) -> None:
 
 
 # --- Page header ---
-st.title(APP_TITLE)
-st.caption("Train slim: woorden met meer fouten komen vaker terug.")
-st.link_button("Bekijk op GitHub", REPO_URL)
+col_hdr_title, col_hdr_right = st.columns([3, 2])
+with col_hdr_title:
+    st.title(APP_TITLE)
 
 # --- User selection ---
 if "current_user" not in st.session_state:
@@ -539,25 +539,18 @@ due_list = due_words(progress, all_word_keys)
 new_list = new_words(progress, all_word_keys)
 streak_count = progress["streak"]["count"]
 
-with st.sidebar:
-    st.markdown("---")
-    st.subheader("Vandaag")
-    col_due, col_new = st.columns(2)
-    col_due.metric("Te herhalen", len(due_list))
-    col_new.metric("Nieuw", f"{min(len(new_list), DEFAULT_NEW_WORDS_PER_SESSION)}")
-    if streak_count > 0:
-        st.caption(f"🔥 {streak_count} {'dag' if streak_count == 1 else 'dagen'} op rij")
-
-    if "session_start" not in st.session_state:
-        st.session_state.session_start = time.time()
-    elapsed_min = int((time.time() - st.session_state.session_start) / 60)
-    target_min = 15
-    progress_frac = min(elapsed_min / target_min, 1.0)
-    st.progress(progress_frac, text=f"⏱ {elapsed_min} / {target_min} min")
-    if 15 <= elapsed_min < 25:
-        st.success("Goed gedaan! Doel bereikt. Morgen weer?")
-    elif elapsed_min >= 25:
-        st.info("Overweeg een pauze — kort en vaak is effectiever.")
+if "session_start" not in st.session_state:
+    st.session_state.session_start = time.time()
+elapsed_min = int((time.time() - st.session_state.session_start) / 60)
+target_min = 15
+_today_text = (
+    f"📚 {len(due_list)} te herhalen · ✨ {min(len(new_list), DEFAULT_NEW_WORDS_PER_SESSION)} nieuw"
+    + (f" · 🔥 {streak_count}d" if streak_count > 0 else "")
+    + f" · ⏱ {elapsed_min}/{target_min} min"
+)
+with col_hdr_right:
+    st.progress(min(elapsed_min / target_min, 1.0), text=_today_text)
+    st.link_button("GitHub ↗", REPO_URL, use_container_width=True)
 
 # Dynamic font CSS for target language
 if lang_config["direction"] == "rtl":
@@ -702,6 +695,7 @@ if mode == mode_labels["script"]:
         qid = st.session_state.get("alpha_qid", 0)
         selected = st.radio("Kies", options, index=None, key=f"alpha_{qid}", label_visibility="collapsed")
 
+        alpha_trigger_auto_advance = False
         if selected:
             if aq["type"] == "sound_to_letter":
                 speak_text = selected
@@ -714,31 +708,61 @@ if mode == mode_labels["script"]:
                     audio_bytes, audio_format = audio_payload
                     st.audio(audio_bytes, format=audio_format, autoplay=True)
                     st.session_state.alpha_last_spoken = spoken_key
-
-        if st.button("Controleer", type="primary", disabled=st.session_state.alpha_answered, key="alpha_check"):
-            if selected is None:
-                st.warning("Kies eerst een antwoord.")
-            else:
+            if not st.session_state.get("alpha_answered"):
                 is_correct = selected == correct
                 st.session_state.alpha_answered = True
                 st.session_state.alpha_last_result = is_correct
+                if is_correct:
+                    st.session_state.alpha_session_right = st.session_state.get("alpha_session_right", 0) + 1
+                else:
+                    st.session_state.alpha_session_wrong = st.session_state.get("alpha_session_wrong", 0) + 1
+                alpha_trigger_auto_advance = is_correct
 
         if st.session_state.get("alpha_answered"):
             if st.session_state.get("alpha_last_result"):
                 st.success("Goed gedaan!")
             else:
-                st.error(f"Niet goed. Correct was: {correct}")
+                if aq["type"] in ("sound_to_letter", "position") and lang_config["direction"] == "rtl":
+                    correct_html = (
+                        f'<span style="font-family: \'{target_font}\', \'Amiri\', serif;'
+                        f' font-size: 2rem; direction: rtl; display: inline-block;">'
+                        f'{correct}</span>'
+                    )
+                    st.markdown(
+                        f'<div style="color:#7f1d1d; background-color:#fef2f2; border:1px solid #fca5a5;'
+                        f' border-radius:8px; padding:0.75rem 1rem; margin:0.25rem 0;">'
+                        f'❌ Niet goed. Correct was: {correct_html}</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.error(f"Niet goed. Correct was: {correct}")
             if letter_data.get("comment"):
                 st.info(f"💡 {letter_data['comment']}")
 
-        if st.button("Volgende", key="alpha_next"):
+        if alpha_trigger_auto_advance and st.session_state.get("alpha_last_result"):
+            delay = AUTO_ADVANCE_DELAY_CORRECT_SECONDS * 2 if letter_data.get("comment") else AUTO_ADVANCE_DELAY_CORRECT_SECONDS
+            time.sleep(delay)
             st.session_state.alpha_question = build_alpha_question(letters_df, lang_config)
             st.session_state.alpha_answered = False
             st.session_state.alpha_qid = qid + 1
             st.rerun()
 
+        if st.session_state.get("alpha_answered") and not st.session_state.get("alpha_last_result"):
+            if st.button("Volgend karakter", key="alpha_next"):
+                st.session_state.alpha_question = build_alpha_question(letters_df, lang_config)
+                st.session_state.alpha_answered = False
+                st.session_state.alpha_qid = qid + 1
+                st.rerun()
+
     with col_side:
         st.subheader(f"{lang_config['alphabet_label']} overzicht")
+        _s_right = st.session_state.get("alpha_session_right", 0)
+        _s_wrong = st.session_state.get("alpha_session_wrong", 0)
+        _s_total = _s_right + _s_wrong
+        if _s_total > 0:
+            _s_pct = round(100 * _s_right / _s_total)
+            st.markdown(f"<div class='big-score'>{_s_pct}% goed</div>", unsafe_allow_html=True)
+            st.write(f"Goed: {_s_right} | Fout: {_s_wrong}")
         display_cols = [char_col, "name", alpha_translit]
         rename_map = {char_col: "Karakter", "name": "Naam", alpha_translit: "Klank"}
         st.dataframe(
@@ -832,8 +856,11 @@ with col_main:
         # Show split characters (useful for Arabic and Japanese)
         if st.button("Toon losse tekens", key=f"split_{qid}"):
             target_word = question["meta"][target_col]
-            spaced = "  ".join(target_word)
-            st.markdown(f"<div class='target-text' style='letter-spacing:0.3em'>{spaced}</div>", unsafe_allow_html=True)
+            # Split by word first to preserve word boundaries, then split each word into characters
+            words_list = target_word.split()
+            spaced_words = [" ".join(w) for w in words_list]
+            spaced = "  /  ".join(spaced_words)
+            st.markdown(f"<div class='target-text'>{spaced}</div>", unsafe_allow_html=True)
 
     trigger_auto_advance = False
 
@@ -889,10 +916,23 @@ with col_main:
             st.success("Goed gedaan!")
         else:
             translit = question["meta"].get(lang_config["translit_col"], "")
-            st.error(
-                f"Niet goed. Correct was: {question['correct']} "
-                f"({translit})"
-            )
+            if lang_config["direction"] == "rtl" and mode == mode_labels["to_target"]:
+                correct_html = (
+                    f'<span style="font-family: \'{target_font}\', \'Amiri\', serif;'
+                    f' font-size: 1.4rem; direction: rtl; display: inline-block;">'
+                    f'{question["correct"]}</span>'
+                )
+                translit_part = f" ({translit})" if translit else ""
+                st.markdown(
+                    f'<div style="color:#7f1d1d; background-color:#fef2f2; border:1px solid #fca5a5;'
+                    f' border-radius:8px; padding:0.75rem 1rem; margin:0.25rem 0;">'
+                    f'❌ Niet goed. Correct was: {correct_html}{translit_part}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.error(
+                    f"Niet goed. Correct was: {question['correct']} ({translit})"
+                )
         comment = question["meta"].get("comment", "")
         if comment:
             st.info(f"💡 {comment}")
@@ -912,12 +952,13 @@ with col_main:
                 ex_text += f" — {example_nl}"
             st.caption(ex_text)
 
-    if st.session_state.get("answered") and trigger_auto_advance:
-        delay_seconds = (
-            AUTO_ADVANCE_DELAY_CORRECT_SECONDS
-            if st.session_state.get("last_result")
-            else AUTO_ADVANCE_DELAY_WRONG_SECONDS
+    if st.session_state.get("answered") and trigger_auto_advance and st.session_state.get("last_result"):
+        has_extra_info = bool(
+            question["meta"].get("comment")
+            or question["meta"].get("example")
+            or question["meta"].get("root")
         )
+        delay_seconds = AUTO_ADVANCE_DELAY_CORRECT_SECONDS * 2 if has_extra_info else AUTO_ADVANCE_DELAY_CORRECT_SECONDS
         time.sleep(delay_seconds)
         st.session_state.question = build_question(words_df, mode, lang_config)
         st.session_state.answered = False
