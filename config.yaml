@@ -1,0 +1,39 @@
+# Ottolingo – user-tweakable settings
+# Edit this file to customise the app without touching any code.
+
+app:
+  title: "Ottolingo"
+  repo_url: "https://github.com/operdeck/ottolingo"
+
+ui:
+  # Seconds to wait before auto-advancing after a correct answer.
+  # When extra information (comment, example, root) is shown the delay is doubled.
+  auto_advance_delay_correct_seconds: 1.0
+  # Delay constant that applies when an incorrect answer is given (currently
+  # auto-advance only triggers on correct answers; increase this if you want
+  # more reading time on wrong answers in future).
+  auto_advance_delay_wrong_seconds: 1.8
+
+session:
+  # Language shown to a new user who has no saved preference.
+  # Must match a key in languages.py: "arabic" or "japanese".
+  default_language: "arabic"
+
+  # Exercise type shown when the app starts.
+  # Choices: "Meerkeuze" (multiple choice) or "Typen" (free typing).
+  default_answer_style: "Meerkeuze"
+
+  # Maximum number of brand-new words introduced in a single session.
+  new_words_per_session: 7
+
+  # Target session length shown in the progress bar (minutes).
+  target_minutes: 15
+
+  # Number of wrong-answer options shown in multiple-choice exercises.
+  multiple_choice_distractors: 4
+
+srs:
+  # SM-2 starting easiness factor for a new word (higher = intervals grow faster).
+  default_easiness: 2.5
+  # SM-2 minimum easiness factor (prevents intervals from shrinking indefinitely).
+  min_easiness: 1.3

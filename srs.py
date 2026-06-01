@@ -6,10 +6,9 @@ import json
 import time
 from pathlib import Path
 
-PROGRESS_DIR = Path.home() / ".ottolingo"
+from config import DEFAULT_EASINESS, MIN_EASINESS
 
-DEFAULT_EASINESS = 2.5
-MIN_EASINESS = 1.3
+PROGRESS_DIR = Path.home() / ".ottolingo"
 
 
 def _ensure_dir() -> None:

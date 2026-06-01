@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from config import DEFAULT_LANGUAGE
+
 DATA_DIR = Path(__file__).parent / "data"
 
 LANGUAGES = {
@@ -54,9 +56,6 @@ LANGUAGES = {
         },
     },
 }
-
-DEFAULT_LANGUAGE = "arabic"
-
 
 def get_lang_config(lang_key: str) -> dict:
     return LANGUAGES[lang_key]

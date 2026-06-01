@@ -11,7 +11,17 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from languages import DEFAULT_LANGUAGE, LANGUAGES, get_lang_config
+from config import (
+    APP_TITLE,
+    AUTO_ADVANCE_DELAY_CORRECT_SECONDS,
+    DEFAULT_ANSWER_STYLE,
+    DEFAULT_LANGUAGE,
+    DEFAULT_NEW_WORDS_PER_SESSION,
+    MULTIPLE_CHOICE_DISTRACTORS,
+    REPO_URL,
+    SESSION_TARGET_MINUTES,
+)
+from languages import LANGUAGES, get_lang_config
 from srs import (
     due_words,
     get_language,
@@ -26,12 +36,6 @@ from srs import (
     sm2_update,
     update_streak,
 )
-
-APP_TITLE = "Ottolingo"
-REPO_URL = "https://github.com/operdeck/ottolingo"
-AUTO_ADVANCE_DELAY_CORRECT_SECONDS = 1.0
-AUTO_ADVANCE_DELAY_WRONG_SECONDS = 1.8
-DEFAULT_NEW_WORDS_PER_SESSION = 7
 
 
 st.set_page_config(page_title=APP_TITLE, page_icon="📘", layout="wide")
@@ -272,7 +276,7 @@ def similarity_score(a: str, b: str) -> float:
 
 
 def pick_confusable_options(
-    correct: str, pool: list[str], word_key: str = "", n: int = 4
+    correct: str, pool: list[str], word_key: str = "", n: int = MULTIPLE_CHOICE_DISTRACTORS
 ) -> list[str]:
     if len(pool) <= n:
         return pool[:]
@@ -293,7 +297,7 @@ def pick_confusable_options(
 
 
 def build_question(df: pd.DataFrame, mode: str, lang_config: dict) -> dict:
-    answer_style = st.session_state.get("answer_style", "Meerkeuze")
+    answer_style = st.session_state.get("answer_style", DEFAULT_ANSWER_STYLE)
     row = weighted_pick(df)
     target_col = lang_config["target_col"]
     translit_col = lang_config["translit_col"]
@@ -504,7 +508,11 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 
-    st.session_state.answer_style = st.radio("Antwoordtype", ["Meerkeuze", "Typen"], horizontal=True)
+    _answer_styles = ["Meerkeuze", "Typen"]
+    _default_style_idx = _answer_styles.index(DEFAULT_ANSWER_STYLE) if DEFAULT_ANSWER_STYLE in _answer_styles else 0
+    st.session_state.answer_style = st.radio(
+        "Antwoordtype", _answer_styles, index=_default_style_idx, horizontal=True
+    )
 
     # Font selector (only for Arabic)
     if lang_config["direction"] == "rtl":
@@ -542,7 +550,7 @@ streak_count = progress["streak"]["count"]
 if "session_start" not in st.session_state:
     st.session_state.session_start = time.time()
 elapsed_min = int((time.time() - st.session_state.session_start) / 60)
-target_min = 15
+target_min = SESSION_TARGET_MINUTES
 _today_text = (
     f"📚 {len(due_list)} te herhalen · ✨ {min(len(new_list), DEFAULT_NEW_WORDS_PER_SESSION)} nieuw"
     + (f" · 🔥 {streak_count}d" if streak_count > 0 else "")
@@ -613,13 +621,13 @@ if mode == mode_labels["script"]:
             correct = letter_data[alpha_translit]
             pool = [r[alpha_translit] for _, r in letters_df.iterrows() if r[alpha_translit] != correct]
             random.shuffle(pool)
-            options = [correct] + pool[:4]
+            options = [correct] + pool[:MULTIPLE_CHOICE_DISTRACTORS]
             random.shuffle(options)
         elif exercise_type == "sound_to_letter":
             correct = letter_data[char_col]
             pool = [r[char_col] for _, r in letters_df.iterrows() if r[char_col] != correct]
             random.shuffle(pool)
-            options = [correct] + pool[:4]
+            options = [correct] + pool[:MULTIPLE_CHOICE_DISTRACTORS]
             random.shuffle(options)
         else:
             positions = {"initial": "begin", "medial": "midden", "final": "eind"}
@@ -627,7 +635,7 @@ if mode == mode_labels["script"]:
             correct = letter_data[pos_key]
             pool = [r[pos_key] for _, r in letters_df.iterrows() if r[pos_key] != correct]
             random.shuffle(pool)
-            options = [correct] + pool[:4]
+            options = [correct] + pool[:MULTIPLE_CHOICE_DISTRACTORS]
             random.shuffle(options)
             letter_data["_pos_key"] = pos_key
             letter_data["_pos_label"] = positions[pos_key]
