@@ -1,0 +1,313 @@
+voornaamwoorden:
+  label: "Voornaamwoorden"
+  words:
+    - ik
+    - jij
+    - hij
+    - zij
+    - wij
+    - jullie
+    - "zij (meervoud)"
+    - dit
+    - dat
+
+dagen_week:
+  label: "Dagen van de week"
+  words:
+    - maandag
+    - dinsdag
+    - woensdag
+    - donderdag
+    - vrijdag
+    - zaterdag
+    - zondag
+
+tijd_algemeen:
+  label: "Tijd en momenten"
+  words:
+    - vandaag
+    - morgen
+    - gisteren
+    - ochtend
+    - avond
+    - nacht
+    - dag
+    - uur
+    - minuut
+    - nu
+    - later
+
+seizoenen:
+  label: "Seizoenen en weer"
+  words:
+    - lente
+    - zomer
+    - herfst
+    - winter
+    - heet
+    - koud
+    - regen
+    - zon
+    - wind
+    - "mooi weer"
+
+kleuren:
+  label: "Kleuren"
+  words:
+    - rood
+    - blauw
+    - groen
+    - geel
+    - zwart
+    - wit
+    - oranje
+    - bruin
+    - roze
+    - paars
+
+getallen:
+  label: "Getallen"
+  words:
+    - een
+    - twee
+    - drie
+    - vier
+    - vijf
+    - zes
+    - zeven
+    - acht
+    - negen
+    - tien
+    - elf
+    - twaalf
+    - dertien
+    - veertien
+    - vijftien
+    - twintig
+    - dertig
+    - veertig
+    - vijftig
+    - honderd
+    - duizend
+
+familie:
+  label: "Familie"
+  words:
+    - moeder
+    - vader
+    - broer
+    - zus
+    - zoon
+    - dochter
+    - opa
+    - oma
+    - "oom (vader's kant)"
+    - "tante (vader's kant)"
+    - "oom (moeder's kant)"
+    - "tante (moeder's kant)"
+    - echtgenoot
+
+lichaam:
+  label: "Lichaam"
+  words:
+    - hoofd
+    - hand
+    - oog
+    - mond
+    - hart
+    - neus
+    - oor
+    - buik
+
+gevoelens:
+  label: "Gevoelens en toestand"
+  words:
+    - blij
+    - verdrietig
+    - moe
+    - hongerig
+    - dorstig
+    - ziek
+    - boos
+    - bang
+
+begroetingen:
+  label: "Begroetingen en beleefdheden"
+  words:
+    - hallo
+    - goedemorgen
+    - goedenavond
+    - goedenacht
+    - welkom
+    - "tot ziens"
+    - "dank je/u"
+    - "dank u wel"
+    - "geen dank"
+    - alstublieft
+    - sorry
+    - "het spijt me"
+    - pardon
+    - "hoe gaat het met u"
+    - "aangenaam"
+    - gefeliciteerd
+    - "geen probleem"
+    - natuurlijk
+
+eten_drinken:
+  label: "Eten en drinken"
+  words:
+    - rijst
+    - vlees
+    - kip
+    - vis
+    - brood
+    - ei
+    - kaas
+    - boter
+    - soep
+    - salade
+    - hummus
+    - tomaat
+    - komkommer
+    - ui
+    - knoflook
+    - aardappel
+    - fruit
+    - appel
+    - sinaasappel
+    - citroen
+    - banaan
+    - druiven
+    - noten
+    - water
+    - sap
+    - koffie
+    - thee
+    - melk
+    - suiker
+    - restaurant
+    - lekker
+    - pikant
+    - zoet
+    - zuur
+    - bitter
+
+richtingen_locatie:
+  label: "Richtingen en locatie"
+  words:
+    - links
+    - rechts
+    - rechtdoor
+    - dichtbij
+    - ver
+    - hier
+    - daar
+    - "waar is...?"
+    - "hoe kom ik bij...?"
+    - "hoe ver is het?"
+
+vervoer:
+  label: "Vervoer"
+  words:
+    - taxi
+    - bus
+    - trein
+    - vliegveld
+    - station
+    - kaartje
+    - weg
+
+plaatsen:
+  label: "Plaatsen"
+  words:
+    - hotel
+    - ziekenhuis
+    - apotheek
+    - moskee
+    - strand
+    - stadscentrum
+    - politiebureau
+    - school
+    - werk
+    - markt
+    - winkel
+
+winkelen:
+  label: "Winkelen"
+  words:
+    - "hoeveel kost dit?"
+    - "dat is te duur"
+    - "ik wil dit kopen"
+    - goedkoop
+    - duur
+    - korting
+    - prijs
+    - geld
+    - wisselgeld
+    - betalen
+    - open
+    - gesloten
+    - kleur
+    - shirt
+    - broek
+    - jurk
+    - schoenen
+    - tas
+    - sjaal
+
+bijvoeglijke_naamwoorden:
+  label: "Bijvoeglijke naamwoorden"
+  words:
+    - groot
+    - klein
+    - snel
+    - lang
+    - kort
+    - jong
+    - mooi
+    - sterk
+    - slim
+    - goed
+    - slecht
+    - nieuw
+    - oud
+
+vraagwoorden:
+  label: "Vraagwoorden"
+  words:
+    - wat
+    - wie
+    - waar
+    - waarvandaan
+    - "waar kom jij vandaan"
+
+kleine_woorden:
+  label: "Kleine woorden en uitdrukkingen"
+  words:
+    - en
+    - ja
+    - nee
+    - nu
+    - later
+
+noodhulp:
+  label: "Noodsituaties"
+  words:
+    - "help!"
+    - politie
+    - dokter
+    - "ik ben verdwaald"
+    - "bel een ambulance"
+    - "het is een noodgeval"
+    - ziekenhuis
+
+islamitische_uitdrukkingen:
+  label: "Islamitische uitdrukkingen"
+  words:
+    - "in de naam van God"
+    - "God zij dank"
+    - "wat God wil (bewondering)"
+    - "God is groot"
+    - "als God het wil"
+    - "vrede zij met u"
+    - "en vrede zij met u (antwoord)"

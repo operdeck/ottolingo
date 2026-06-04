@@ -31,6 +31,7 @@ Visueel oefenprogramma voor macOS met praktisch vocabulaire voor reizigers en da
 - Commentaar bij woorden toont grammaticale context (geslacht, dialect, culturele noot); correct lettertype gebruikt in foutmeldingen
 - Keuze uit lettertypen per taal (Arabisch: Amiri, Noto Naskh, Cairo, etc.)
 - Voortgang wordt persistent opgeslagen per gebruiker (~/.ottolingo/)
+- **Zoek & Oefen**: zoek een woord op, bekijk de vertaling en alle woordgroepen waar het in voorkomt, en drill gericht een groep — afwisselend NL→doeltaal en doeltaal→NL; SRS-statistieken worden bijgehouden
 
 ## Starten
 
@@ -63,15 +64,17 @@ data/
 │   ├── Basis/words.csv
 │   ├── Begroetingen/words.csv
 │   ├── Eten en drinken/words.csv
+│   ├── groups.yaml          ← thematische woordgroepen voor Zoek & Oefen
 │   └── ...
 ├── japanese/
 │   ├── Hiragana/characters.csv
 │   ├── Basis/words.csv
 │   ├── Begroetingen/words.csv
+│   ├── groups.yaml          ← thematische woordgroepen voor Zoek & Oefen
 │   └── ...
 ```
 
-Nieuwe categorie toevoegen = map aanmaken met een CSV erin. De app ontdekt categorieën automatisch.
+Nieuwe categorie toevoegen = map aanmaken met een CSV erin. De app ontdekt categorieën automatisch en voegt ze ook toe als woordgroepen in Zoek & Oefen.
 
 ### CSV-kolommen per taal
 
