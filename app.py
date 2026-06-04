@@ -940,6 +940,38 @@ if mode == mode_labels.get("explore"):
                 trigger_advance = False
 
                 if eq["answer_style"] == "Meerkeuze":
+                    # Apply the same large-font CSS for target-language options as the regular practice mode
+                    if drill_mode == mode_labels["to_target"]:
+                        if lang_config["direction"] == "rtl":
+                            st.markdown(
+                                f"""
+<style>
+[data-testid="stMain"] [data-testid="stRadio"] label p,
+[data-testid="stMain"] [data-testid="stRadio"] label span,
+[data-testid="stMain"] [data-testid="stRadio"] label div {{
+    font-size: 2.25rem !important;
+    direction: rtl !important;
+    text-align: right !important;
+    font-family: '{target_font}', 'Amiri', 'Manrope', sans-serif !important;
+}}
+</style>
+""",
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                f"""
+<style>
+[data-testid="stMain"] [data-testid="stRadio"] label p,
+[data-testid="stMain"] [data-testid="stRadio"] label span,
+[data-testid="stMain"] [data-testid="stRadio"] label div {{
+    font-size: 2.25rem !important;
+    font-family: '{target_font}', 'Noto Sans JP', 'Manrope', sans-serif !important;
+}}
+</style>
+""",
+                                unsafe_allow_html=True,
+                            )
                     selected_ans = st.radio(
                         "Kies je antwoord",
                         eq["options"],
