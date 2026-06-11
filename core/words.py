@@ -5,6 +5,24 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import yaml
+
+
+def _load_thematic_groups(lang_config: dict) -> dict[str, dict]:
+    """Load thematic groups from groups.yaml (no external dependency)."""
+    path = Path(lang_config["data_dir"]) / "groups.yaml"
+    if not path.exists():
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+    return {
+        key: {"label": str(val["label"]), "words": [str(w) for w in val.get("words", [])]}
+        for key, val in data.items()
+        if isinstance(val, dict) and "label" in val and "words" in val
+    }
 
 
 def discover_categories(lang_config: dict) -> list[str]:
@@ -12,10 +30,15 @@ def discover_categories(lang_config: dict) -> list[str]:
     if not data_dir.exists():
         return []
     alphabet_dir = lang_config["alphabet_dir"]
-    return sorted(
+    folder_cats = sorted(
         d.name for d in data_dir.iterdir()
         if d.is_dir() and d.name != alphabet_dir and any(d.glob("*.csv"))
     )
+    # Append thematic group labels that don't duplicate an existing folder name
+    folder_set = set(folder_cats)
+    thematic = _load_thematic_groups(lang_config)
+    group_labels = [g["label"] for g in thematic.values() if g["label"] not in folder_set]
+    return folder_cats + group_labels
 
 
 def load_category(category_dir: Path, word_columns: list[str]) -> pd.DataFrame:
@@ -48,4 +71,18 @@ def load_words(lang_config: dict, category: str = "Alle woorden") -> pd.DataFram
         combined = pd.concat(frames, ignore_index=True).fillna("")
         return combined.drop_duplicates(subset=["dutch", target_col], keep="first").reset_index(drop=True)
 
+    # Folder-based category
+    cat_dir = data_dir / category
+    if cat_dir.exists():
+        return load_category(cat_dir, word_columns)
+
+    # Thematic group from groups.yaml
+    thematic = _load_thematic_groups(lang_config)
+    for group in thematic.values():
+        if group["label"] == category:
+            all_df = load_words(lang_config, "Alle woorden")
+            filtered = all_df[all_df["dutch"].isin(group["words"])].copy()
+            return filtered.reset_index(drop=True)
+
+    # Fallback (shouldn't happen, but be safe)
     return load_category(data_dir / category, word_columns)

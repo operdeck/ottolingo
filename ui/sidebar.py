@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from config import DEFAULT_ANSWER_STYLE
-from core.words import discover_categories
+from core.words import discover_categories, load_words
 from languages import LANGUAGES, get_lang_config
 from srs import save_language, save_preferences
 from utils.audio import list_macos_voices as _list_macos_voices
@@ -85,6 +85,8 @@ def render_sidebar(active_user: str) -> tuple[str, str, dict, str, str]:
             "Woordenlijst", _all_cats, index=_cat_index, label_visibility="collapsed"
         )
         _save_pref("category", category)
+        _n_words = len(load_words(lang_config, category))
+        st.caption(f"{_n_words} woorden")
 
         _answer_styles = ["Meerkeuze", "Typen"]
         _default_style_idx = (

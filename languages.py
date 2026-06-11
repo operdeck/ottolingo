@@ -25,12 +25,11 @@ LANGUAGES = {
         "alphabet_has_positions": True,
         "word_columns": ["dutch", "arabic", "transliteration", "comment", "root", "example", "example_nl"],
         "alphabet_columns": ["name", "transliteration", "isolated", "initial", "medial", "final", "comment"],
-        "modes": ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Schrift oefenen", "Zoek & Oefen"],
+        "modes": ["Nederlands -> Arabisch", "Arabisch -> Nederlands", "Schrift oefenen"],
         "mode_labels": {
             "to_target": "Nederlands -> Arabisch",
             "to_dutch": "Arabisch -> Nederlands",
             "script": "Schrift oefenen",
-            "explore": "Zoek & Oefen",
         },
     },
     "japanese": {
@@ -49,12 +48,11 @@ LANGUAGES = {
         "alphabet_has_positions": False,
         "word_columns": ["dutch", "japanese", "romaji", "comment", "example", "example_nl"],
         "alphabet_columns": ["name", "romaji", "character", "comment"],
-        "modes": ["Nederlands -> Japans", "Japans -> Nederlands", "Hiragana oefenen", "Zoek & Oefen"],
+        "modes": ["Nederlands -> Japans", "Japans -> Nederlands", "Hiragana oefenen"],
         "mode_labels": {
             "to_target": "Nederlands -> Japans",
             "to_dutch": "Japans -> Nederlands",
             "script": "Hiragana oefenen",
-            "explore": "Zoek & Oefen",
         },
     },
 }

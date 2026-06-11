@@ -16,7 +16,7 @@ from config import (
 from core.words import load_words
 from languages import LANGUAGES
 from srs import due_words, get_language, get_preferences, new_words
-from ui import explore_mode, practice_mode, script_mode
+from ui import practice_mode, script_mode
 from ui.login import render_login
 from ui.sidebar import render_sidebar
 from ui.state import ensure_stats_for_words, get_progress
@@ -106,8 +106,5 @@ mode_labels = lang_config["mode_labels"]
 
 if mode == mode_labels["script"]:
     script_mode.render(mode, lang_config, target_font, selected_voice)
-
-if mode == mode_labels.get("explore"):
-    explore_mode.render(lang_config, target_font, selected_voice)
 
 practice_mode.render(words_df, mode, category, lang_config, target_font, selected_voice)

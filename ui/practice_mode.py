@@ -222,7 +222,11 @@ def render(
 
     with col_side:
         st.subheader("Jouw voortgang")
+        _current_keys = set(words_df["dutch"].tolist())
+        _show_all = st.toggle("Alle woorden", value=False, key="voortgang_show_all")
         stats = get_stats()
+        if not _show_all:
+            stats = {k: v for k, v in stats.items() if k in _current_keys}
 
         total_right = sum(v["right"] for v in stats.values())
         total_wrong = sum(v["wrong"] for v in stats.values())

@@ -100,7 +100,12 @@ def sm2_update(word_state: dict, quality: int) -> None:
     ef = ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
     word_state["easiness"] = max(MIN_EASINESS, ef)
 
-    word_state["next_review"] = now + word_state["interval"] * 86400
+    # Wrong answers become immediately due (repeat in same session).
+    # Correct answers schedule for next review based on interval.
+    if quality >= 3:
+        word_state["next_review"] = now + word_state["interval"] * 86400
+    else:
+        word_state["next_review"] = now
 
 
 def is_due(word_state: dict) -> bool:
