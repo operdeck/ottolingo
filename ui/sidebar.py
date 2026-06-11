@@ -7,7 +7,7 @@ import streamlit as st
 from config import DEFAULT_ANSWER_STYLE
 from core.words import discover_categories
 from languages import LANGUAGES, get_lang_config
-from srs import save_language
+from srs import save_language, save_preferences
 from utils.audio import list_macos_voices as _list_macos_voices
 
 
@@ -18,12 +18,21 @@ def list_macos_voices(voice_prefix: str, default_voice: str) -> list[str]:
 
 def render_sidebar(active_user: str) -> tuple[str, str, dict, str, str]:
     """Render the sidebar and return (mode, category, lang_config, target_font, voice)."""
+
+    def _save_pref(key: str, value: str) -> None:
+        """Persist a single UI preference for the active user."""
+        prefs = st.session_state.get("user_prefs", {})
+        if prefs.get(key) != value:
+            prefs[key] = value
+            st.session_state.user_prefs = prefs
+            save_preferences(active_user, prefs)
+
     with st.sidebar:
         if active_user:
             st.caption(f"Ingelogd als **{active_user}**")
         else:
             st.caption("Anonieme sessie (niet opgeslagen)")
-        if st.button("Wissel gebruiker", type="tertiary"):
+        if st.button("Wissel gebruiker", type="secondary"):
             st.session_state.current_user = None
             for key in list(st.session_state.keys()):
                 if str(key).startswith("progress_"):
@@ -57,36 +66,51 @@ def render_sidebar(active_user: str) -> tuple[str, str, dict, str, str]:
         lang_config = get_lang_config(st.session_state.current_language)
 
         st.subheader("Oefenmodus")
+        _saved_mode = st.session_state.get("user_prefs", {}).get("mode")
+        _mode_index = lang_config["modes"].index(_saved_mode) if _saved_mode in lang_config["modes"] else 0
         mode = st.selectbox(
             "Oefenmodus",
             lang_config["modes"],
+            index=_mode_index,
             label_visibility="collapsed",
         )
+        _save_pref("mode", mode)
 
         st.subheader("Woordenlijst")
         categories = discover_categories(lang_config)
+        _all_cats = ["Alle woorden"] + categories
+        _saved_cat = st.session_state.get("user_prefs", {}).get("category")
+        _cat_index = _all_cats.index(_saved_cat) if _saved_cat in _all_cats else 0
         category = st.selectbox(
-            "Woordenlijst", ["Alle woorden"] + categories, label_visibility="collapsed"
+            "Woordenlijst", _all_cats, index=_cat_index, label_visibility="collapsed"
         )
+        _save_pref("category", category)
 
         _answer_styles = ["Meerkeuze", "Typen"]
         _default_style_idx = (
             _answer_styles.index(DEFAULT_ANSWER_STYLE) if DEFAULT_ANSWER_STYLE in _answer_styles else 0
         )
+        _saved_style = st.session_state.get("user_prefs", {}).get("answer_style")
+        _style_index = _answer_styles.index(_saved_style) if _saved_style in _answer_styles else _default_style_idx
         st.session_state.answer_style = st.radio(
-            "Antwoordtype", _answer_styles, index=_default_style_idx, horizontal=True
+            "Antwoordtype", _answer_styles, index=_style_index, horizontal=True
         )
+        _save_pref("answer_style", st.session_state.answer_style)
 
         st.markdown("---")
 
         # Font selector (only for Arabic)
         if lang_config["direction"] == "rtl":
             st.subheader("Arabisch lettertype")
+            _saved_font = st.session_state.get("user_prefs", {}).get("font")
+            _font_index = lang_config["fonts"].index(_saved_font) if _saved_font in lang_config["fonts"] else 0
             target_font = st.selectbox(
                 "Arabisch lettertype",
                 lang_config["fonts"],
+                index=_font_index,
                 label_visibility="collapsed",
             )
+            _save_pref("font", target_font)
         else:
             target_font = lang_config["fonts"][0]
 
@@ -96,6 +120,9 @@ def render_sidebar(active_user: str) -> tuple[str, str, dict, str, str]:
         default_voice_index = 0
         if lang_config["default_voice"] in all_voices:
             default_voice_index = all_voices.index(lang_config["default_voice"])
-        selected_voice = st.selectbox("Kies stem", all_voices, index=default_voice_index)
+        _saved_voice = st.session_state.get("user_prefs", {}).get("voice")
+        _voice_index = all_voices.index(_saved_voice) if _saved_voice in all_voices else default_voice_index
+        selected_voice = st.selectbox("Kies stem", all_voices, index=_voice_index)
+        _save_pref("voice", selected_voice)
 
     return mode, category, lang_config, target_font, selected_voice

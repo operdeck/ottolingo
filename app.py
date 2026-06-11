@@ -15,7 +15,7 @@ from config import (
 )
 from core.words import load_words
 from languages import LANGUAGES
-from srs import due_words, get_language, new_words
+from srs import due_words, get_language, get_preferences, new_words
 from ui import explore_mode, practice_mode, script_mode
 from ui.login import render_login
 from ui.sidebar import render_sidebar
@@ -38,6 +38,10 @@ active_user = st.session_state.current_user
 if "current_language" not in st.session_state:
     saved_lang = get_language(active_user) if active_user else ""
     st.session_state.current_language = saved_lang if saved_lang in LANGUAGES else DEFAULT_LANGUAGE
+
+# Load saved UI preferences
+if "user_prefs" not in st.session_state:
+    st.session_state.user_prefs = get_preferences(active_user) if active_user else {}
 
 # --- Sidebar ---
 mode, category, lang_config, target_font, selected_voice = render_sidebar(active_user)

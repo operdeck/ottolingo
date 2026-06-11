@@ -230,3 +230,34 @@ def save_progress_for_language(data: dict) -> None:
     full_data["sessions"] = data.get("sessions", [])
 
     path.write_text(json.dumps(full_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def get_preferences(user: str) -> dict:
+    """Return the persisted UI preferences for *user* (empty dict for anonymous)."""
+    if not user:
+        return {}
+    path = _user_file(user)
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return data.get("preferences", {})
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def save_preferences(user: str, prefs: dict) -> None:
+    """Persist UI preferences for *user*."""
+    if not user:
+        return
+    _ensure_dir()
+    path = _user_file(user)
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = _default_progress(user)
+    else:
+        data = _default_progress(user)
+    data["preferences"] = prefs
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
