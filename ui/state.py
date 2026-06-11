@@ -127,13 +127,20 @@ def build_question(df: pd.DataFrame, mode: str, lang_config: dict) -> dict:
 
     mode_labels = lang_config["mode_labels"]
 
-    if mode == mode_labels["to_target"]:
+    # For combined mode, randomly pick a direction
+    if mode == mode_labels.get("combined"):
+        effective_mode = random.choice([mode_labels["to_target"], mode_labels["to_dutch"]])
+    else:
+        effective_mode = mode
+
+    if effective_mode == mode_labels["to_target"]:
         pool = [x for x in df[target_col].tolist() if x != row[target_col]]
         distractors = pick_confusable_options(row[target_col], pool, get_confusions(), row["dutch"])
         options = [row[target_col]] + distractors
         random.shuffle(options)
         return {
-            "mode": mode,
+            "mode": effective_mode,
+            "sidebar_mode": mode,
             "prompt": f"Wat is het {lang_name} voor: {row['dutch']}?",
             "prompt_target": "",
             "correct": row[target_col],
@@ -144,13 +151,14 @@ def build_question(df: pd.DataFrame, mode: str, lang_config: dict) -> dict:
             "answer_style": answer_style,
         }
 
-    if mode == mode_labels["to_dutch"]:
+    if effective_mode == mode_labels["to_dutch"]:
         pool = [x for x in df["dutch"].tolist() if x != row["dutch"]]
         distractors = pick_confusable_options(row["dutch"], pool, get_confusions(), row["dutch"])
         options = [row["dutch"]] + distractors
         random.shuffle(options)
         return {
-            "mode": mode,
+            "mode": effective_mode,
+            "sidebar_mode": mode,
             "prompt": f"Welk Nederlands woord hoort bij dit {lang_name}e woord?",
             "prompt_target": row[target_col],
             "correct": row["dutch"],

@@ -26,7 +26,7 @@ def render(
 
     if (
         "question" not in st.session_state
-        or st.session_state.get("question", {}).get("mode") != mode
+        or st.session_state.get("question", {}).get("sidebar_mode", st.session_state.get("question", {}).get("mode")) != mode
         or st.session_state.get("question", {}).get("answer_style") != st.session_state.answer_style
         or st.session_state.get("current_category") != category
     ):
@@ -36,15 +36,15 @@ def render(
 
     question = st.session_state.question
 
-    if mode == mode_labels["to_target"]:
+    if question["mode"] == mode_labels["to_target"]:
         if lang_config["direction"] == "rtl":
             st.markdown(
                 f"""
 <style>
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {{
-    font-size: 2.25rem !important;
+section.main [data-testid="stRadio"] label p,
+section.main [data-testid="stRadio"] label span,
+section.main [data-testid="stRadio"] label div {{
+    font-size: 2.75rem !important;
     direction: rtl !important;
     text-align: right !important;
     font-family: '{target_font}', 'Amiri', 'Manrope', sans-serif !important;
@@ -57,9 +57,9 @@ def render(
             st.markdown(
                 f"""
 <style>
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {{
+section.main [data-testid="stRadio"] label p,
+section.main [data-testid="stRadio"] label span,
+section.main [data-testid="stRadio"] label div {{
     font-size: 2.25rem !important;
     font-family: '{target_font}', 'Noto Sans JP', 'Manrope', sans-serif !important;
 }}
@@ -71,9 +71,9 @@ def render(
         st.markdown(
             """
 <style>
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {
+section.main [data-testid="stRadio"] label p,
+section.main [data-testid="stRadio"] label span,
+section.main [data-testid="stRadio"] label div {
     font-size: 1.35rem !important;
     direction: ltr !important;
     text-align: left !important;
@@ -96,7 +96,7 @@ def render(
 
         target_col = lang_config["target_col"]
 
-        if mode == mode_labels["to_dutch"]:
+        if question["mode"] == mode_labels["to_dutch"]:
             audio_payload = macos_tts_audio(question["meta"][target_col], voice=selected_voice)
             if audio_payload:
                 audio_bytes, audio_format = audio_payload
@@ -123,7 +123,7 @@ def render(
                 label_visibility="collapsed",
             )
 
-            if mode == mode_labels["to_target"] and selected:
+            if question["mode"] == mode_labels["to_target"] and selected:
                 spoken_key = f"{qid}:{selected}"
                 if st.session_state.get("last_spoken_choice") != spoken_key:
                     audio_payload = macos_tts_audio(selected, voice=selected_voice)
@@ -165,7 +165,7 @@ def render(
                 st.success("Goed gedaan!")
             else:
                 translit = question["meta"].get(lang_config["translit_col"], "")
-                if lang_config["direction"] == "rtl" and mode == mode_labels["to_target"]:
+                if lang_config["direction"] == "rtl" and question["mode"] == mode_labels["to_target"]:
                     correct_html = (
                         f'<span style="font-family: \'{target_font}\', \'Amiri\', serif;'
                         f' font-size: 1.4rem; direction: rtl; display: inline-block;">'
