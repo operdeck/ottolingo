@@ -84,10 +84,10 @@ def render(mode: str, lang_config: dict, target_font: str, selected_voice: str) 
         if lang_config["direction"] == "rtl":
             st.markdown(
                 f"""<style>
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {{
-    font-size: 2.5rem !important;
+section.main [data-testid="stRadio"] label p,
+section.main [data-testid="stRadio"] label span,
+section.main [data-testid="stRadio"] label div {{
+    font-size: 2.75rem !important;
     font-family: '{target_font}', 'Amiri', serif !important;
     direction: rtl !important;
 }}
@@ -97,10 +97,10 @@ def render(mode: str, lang_config: dict, target_font: str, selected_voice: str) 
         else:
             st.markdown(
                 f"""<style>
-[data-testid="stMain"] [data-testid="stRadio"] label p,
-[data-testid="stMain"] [data-testid="stRadio"] label span,
-[data-testid="stMain"] [data-testid="stRadio"] label div {{
-    font-size: 2.5rem !important;
+section.main [data-testid="stRadio"] label p,
+section.main [data-testid="stRadio"] label span,
+section.main [data-testid="stRadio"] label div {{
+    font-size: 2.75rem !important;
     font-family: '{target_font}', 'Noto Sans JP', sans-serif !important;
 }}
 </style>""",
