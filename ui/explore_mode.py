@@ -81,7 +81,7 @@ def render(lang_config: dict, target_font: str, selected_voice: str) -> None:
             )
             st.progress(min(qidx / max(total_q, 1), 1.0), text=f"Vraag {min(qidx + 1, total_q)} van {total_q}")
 
-            if st.button("← Terug naar zoeken", type="tertiary"):
+            if st.button("← Terug naar zoeken", type="secondary"):
                 st.session_state.explore_phase = "search"
                 for _k in ["explore_drill_plan", "explore_drill_qidx", "explore_drill_answered",
                            "explore_drill_question", "explore_drill_qidx_built", "explore_drill_results"]:
