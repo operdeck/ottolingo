@@ -144,7 +144,7 @@ def build_question(df: pd.DataFrame, mode: str, lang_config: dict) -> dict:
             "prompt": f"Wat is het {lang_name} voor: {row['dutch']}?",
             "prompt_target": "",
             "correct": row[target_col],
-            "accepted": [normalize(row[target_col]), normalize(row[translit_col])],
+            "accepted": [normalize(row[target_col])] + ([normalize(row[translit_col])] if translit_col else []),
             "options": options,
             "word_key": row["dutch"],
             "meta": row.to_dict(),

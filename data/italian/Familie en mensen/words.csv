@@ -1,0 +1,23 @@
+dutch,italian,comment
+vader,padre,informeel: papà
+moeder,madre,informeel: mamma
+zoon,figlio,meervoud: figli
+dochter,figlia,meervoud: figlie
+broer,fratello,
+zus,sorella,
+grootvader,nonno,
+grootmoeder,nonna,
+kleinkind,nipote,ook: neef/nicht
+oom,zio,
+tante,zia,
+neef (oomzegger),nipote,ook: kleinkind; neef van oom/tante: cugino
+nicht (oomzegster),nipote,vrouwelijk van cugino: cugina
+vriend,amico,vrouwelijk: amica
+vriendin,amica,
+buurman,vicino,vrouwelijk: vicina
+echtgenoot,marito,
+echtgenote,moglie,
+baby,bambino,vrouwelijk: bambina
+tiener,adolescente,
+volwassene,adulto,
+bejaarde,anziano,vrouwelijk: anziana
