@@ -12,12 +12,16 @@ def test_all_languages_have_required_keys():
     required_keys = [
         "name", "flag", "target_col", "translit_col", "data_dir",
         "direction", "fonts", "default_voice", "voice_prefix",
-        "alphabet_dir", "alphabet_label", "alphabet_has_positions",
-        "word_columns", "alphabet_columns", "modes", "mode_labels",
+        "word_columns", "modes", "mode_labels",
     ]
+    script_keys = ["alphabet_dir", "alphabet_label", "alphabet_has_positions", "alphabet_columns"]
     for lang_key, config in LANGUAGES.items():
         for key in required_keys:
             assert key in config, f"'{key}' missing in language '{lang_key}'"
+        has_script = "script" in config.get("mode_labels", {})
+        if has_script:
+            for key in script_keys:
+                assert key in config, f"'{key}' missing in script language '{lang_key}'"
 
 
 def test_default_language_exists():
@@ -42,6 +46,8 @@ def test_data_directories_exist():
 
 def test_alphabet_files_exist():
     for lang_key, config in LANGUAGES.items():
+        if not config.get("alphabet_dir"):
+            continue
         alpha_dir = config["data_dir"] / config["alphabet_dir"]
         assert alpha_dir.exists(), f"Alphabet dir for '{lang_key}' does not exist"
         csv_files = list(alpha_dir.glob("*.csv"))
@@ -52,25 +58,29 @@ def test_word_csvs_have_correct_columns():
     for lang_key, config in LANGUAGES.items():
         data_dir = config["data_dir"]
         word_columns = config["word_columns"]
-        alphabet_dir = config["alphabet_dir"]
+        alphabet_dir = config.get("alphabet_dir")
+        translit_col = config["translit_col"]
 
         for cat_dir in data_dir.iterdir():
             if not cat_dir.is_dir() or cat_dir.name == alphabet_dir:
                 continue
             for csv_file in cat_dir.glob("*.csv"):
                 df = pd.read_csv(csv_file)
-                # At minimum: dutch + target_col + translit_col
+                # At minimum: dutch + target_col
                 assert "dutch" in df.columns, f"'dutch' missing in {csv_file}"
                 assert config["target_col"] in df.columns, (
                     f"'{config['target_col']}' missing in {csv_file}"
                 )
-                assert config["translit_col"] in df.columns, (
-                    f"'{config['translit_col']}' missing in {csv_file}"
-                )
+                if translit_col:
+                    assert translit_col in df.columns, (
+                        f"'{translit_col}' missing in {csv_file}"
+                    )
 
 
 def test_alphabet_csvs_have_correct_columns():
     for lang_key, config in LANGUAGES.items():
+        if not config.get("alphabet_dir"):
+            continue
         alpha_dir = config["data_dir"] / config["alphabet_dir"]
         for csv_file in alpha_dir.glob("*.csv"):
             df = pd.read_csv(csv_file)
@@ -85,7 +95,7 @@ def test_no_empty_target_words():
     for lang_key, config in LANGUAGES.items():
         data_dir = config["data_dir"]
         target_col = config["target_col"]
-        alphabet_dir = config["alphabet_dir"]
+        alphabet_dir = config.get("alphabet_dir")
 
         for cat_dir in data_dir.iterdir():
             if not cat_dir.is_dir() or cat_dir.name == alphabet_dir:
@@ -103,6 +113,12 @@ def test_mode_labels_consistency():
     for lang_key, config in LANGUAGES.items():
         labels = config["mode_labels"]
         modes = config["modes"]
-        assert labels["to_target"] in modes
-        assert labels["to_dutch"] in modes
-        assert labels["script"] in modes
+        # combined and script are the sidebar-visible modes; to_target/to_dutch are internal
+        if "combined" in labels:
+            assert labels["combined"] in modes, (
+                f"'combined' label not in modes for '{lang_key}'"
+            )
+        if "script" in labels:
+            assert labels["script"] in modes, (
+                f"'script' label not in modes for '{lang_key}'"
+            )

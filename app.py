@@ -104,7 +104,7 @@ else:
 # --- Mode dispatch ---
 mode_labels = lang_config["mode_labels"]
 
-if mode == mode_labels["script"]:
+if mode_labels.get("script") and mode == mode_labels["script"]:
     script_mode.render(mode, lang_config, target_font, selected_voice)
 
 practice_mode.render(words_df, mode, category, lang_config, target_font, selected_voice)

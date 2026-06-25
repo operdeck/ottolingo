@@ -1,0 +1,93 @@
+voornaamwoorden:
+  label: "Voornaamwoorden"
+  words:
+    - ik
+    - jij
+    - hij
+    - zij
+    - wij
+    - jullie
+    - dit
+    - dat
+
+dagen_week:
+  label: "Dagen van de week"
+  words:
+    - maandag
+    - dinsdag
+    - woensdag
+    - donderdag
+    - vrijdag
+    - zaterdag
+    - zondag
+
+tijd_algemeen:
+  label: "Tijd en momenten"
+  words:
+    - vandaag
+    - morgen
+    - gisteren
+    - week
+    - maand
+    - jaar
+    - nu
+    - later
+
+kleuren:
+  label: "Kleuren"
+  words:
+    - rood
+    - blauw
+    - groen
+    - geel
+    - wit
+    - zwart
+    - oranje
+    - grijs
+
+eten_basis:
+  label: "Basisvoedsel"
+  words:
+    - brood
+    - pasta
+    - rijst
+    - vlees
+    - vis
+    - kaas
+    - ei
+    - fruit
+
+drinken:
+  label: "Dranken"
+  words:
+    - water
+    - wijn
+    - bier
+    - koffie
+    - thee
+    - melk
+    - sap
+
+familie_kern:
+  label: "Kerngezin"
+  words:
+    - vader
+    - moeder
+    - zoon
+    - dochter
+    - broer
+    - zus
+
+reizen_kern:
+  label: "Reizen kern"
+  words:
+    - links
+    - rechts
+    - rechtdoor
+    - hier
+    - daar
+    - trein
+    - bus
+    - vliegtuig
+    - hotel
+    - station

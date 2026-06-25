@@ -128,7 +128,7 @@ def render(lang_config: dict, target_font: str, selected_voice: str) -> None:
                             "prompt": f"Wat is het {lang_config['name']} voor: {row['dutch']}?",
                             "prompt_target": "",
                             "correct": row[target_col],
-                            "accepted": [normalize(row[target_col]), normalize(row[translit_col])],
+                            "accepted": [normalize(row[target_col])] + ([normalize(row[translit_col])] if translit_col else []),
                             "options": options,
                             "word_key": row["dutch"],
                             "meta": row.to_dict(),

@@ -57,6 +57,25 @@ LANGUAGES = {
             "combined": "Woordjes oefenen",
         },
     },
+    "italian": {
+        "name": "Italiaans",
+        "flag": "🇮🇹",
+        "target_col": "italian",
+        "translit_col": None,
+        "data_dir": DATA_DIR / "italian",
+        "direction": "ltr",
+        "fonts": ["Georgia", "Times New Roman"],
+        "font_import": "",
+        "default_voice": "Alice",
+        "voice_prefix": "it_",
+        "word_columns": ["dutch", "italian", "comment"],
+        "modes": ["Woordjes oefenen"],
+        "mode_labels": {
+            "to_target": "Nederlands -> Italiaans",
+            "to_dutch": "Italiaans -> Nederlands",
+            "combined": "Woordjes oefenen",
+        },
+    },
 }
 
 def get_lang_config(lang_key: str) -> dict:
