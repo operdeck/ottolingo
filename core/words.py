@@ -29,7 +29,7 @@ def discover_categories(lang_config: dict) -> list[str]:
     data_dir = lang_config["data_dir"]
     if not data_dir.exists():
         return []
-    alphabet_dir = lang_config["alphabet_dir"]
+    alphabet_dir = lang_config.get("alphabet_dir")
     folder_cats = sorted(
         d.name for d in data_dir.iterdir()
         if d.is_dir() and d.name != alphabet_dir and any(d.glob("*.csv"))
