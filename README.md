@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="Ottolingo - Leer Arabisch & Japans" width="100%"/>
+  <img src="docs/banner.svg" alt="Ottolingo - Leer Arabisch, Japans &amp; Italiaans" width="100%"/>
 </p>
 
 # Ottolingo
@@ -10,15 +10,16 @@ Visueel oefenprogramma voor macOS met praktisch vocabulaire voor reizigers en da
 
 | Taal | Woorden | Schrift | Categorieën |
 |------|---------|---------|-------------|
-| 🇸🇦 Arabisch | 321 | 28 letters (4 vormen) | 7 thematisch |
-| 🇯🇵 Japans | 325 | 46 Hiragana | 7 thematisch |
+| 🇸🇦 Arabisch | 364 | 28 letters (4 vormen) | 8 thematisch |
+| 🇯🇵 Japans | 384 | 46 Hiragana | 8 thematisch |
+| 🇮🇹 Italiaans | 252 | — (Latijns schrift) | 8 thematisch |
 
 ## Features
 
 - Nederlands ↔ doeltaal oefenen (meerkeuze of typen)
-- Luisteroefening met macOS text-to-speech (Arabisch: Majed, Japans: Kyoko)
-- 7 thematische woordenlijsten per taal + schriftoefeningen
-- **Multi-taal**: kies je taal in de sidebar; voortgang wordt per taal apart bewaard
+- Luisteroefening met macOS text-to-speech (Arabisch: Majed, Japans: Kyoko, Italiaans: Alice)
+- 8 thematische woordenlijsten per taal; Arabisch en Japans ook schriftoefeningen
+- **Multi-taal**: kies je taal in de sidebar (Arabisch 🇸🇦, Japans 🇯🇵, Italiaans 🇮🇹); voortgang wordt per taal apart bewaard
 - **Spaced repetition (SM-2)**: woorden komen terug op wetenschappelijk optimale intervallen (1d, 6d, 15d, 35d...)
 - **Dagelijks budget**: max 7 nieuwe woorden per sessie, zodat reviews beheersbaar blijven
 - **Confusion matrix**: onthoudt welke woorden je verwart en gebruikt die als slimmere afleiders
@@ -72,6 +73,12 @@ data/
 │   ├── Begroetingen/words.csv
 │   ├── groups.yaml          ← thematische woordgroepen voor Zoek & Oefen
 │   └── ...
+├── italian/
+│   ├── Basis/words.csv
+│   ├── Begroetingen/words.csv
+│   ├── Eten en drinken/words.csv
+│   ├── groups.yaml          ← thematische woordgroepen voor Zoek & Oefen
+│   └── ...
 ```
 
 Nieuwe categorie toevoegen = map aanmaken met een CSV erin. De app ontdekt categorieën automatisch en voegt ze ook toe als woordgroepen in Zoek & Oefen.
@@ -82,7 +89,9 @@ Nieuwe categorie toevoegen = map aanmaken met een CSV erin. De app ontdekt categ
 
 **Japans**: `dutch`, `japanese`, `romaji`, `comment`, `example`, `example_nl`
 
-(alleen `dutch`, doeltaal-kolom, en transcriptie zijn verplicht)
+**Italiaans**: `dutch`, `italian`, `comment`
+
+(alleen `dutch` en de doeltaal-kolom zijn verplicht; transcriptie is optioneel)
 
 ## Didactische achtergrond
 
@@ -90,12 +99,16 @@ Zie [docs/plans/learning-science.md](docs/plans/learning-science.md) voor de wet
 
 ## Opmerking over audio
 
-De luisteroefening gebruikt het macOS commando `say` met taalspecifieke stemmen.
-Extra stemmen installeren: Systeeminstellingen → Toegankelijkheid → Gesproken materiaal → Systeemstem → Beheer stemmen (kies Arabisch of Japans).
+De luisteroefening gebruikt het macOS commando `say` met taalspecifieke stemmen:
+- Arabisch: Majed
+- Japans: Kyoko
+- Italiaans: Alice
+
+Extra stemmen installeren: Systeeminstellingen → Toegankelijkheid → Gesproken materiaal → Systeemstem → Beheer stemmen.
 
 ## Ideeën voor verdere verbeteringen
 
-- Meer talen toevoegen (zelfde structuur: languages.py + data/\<taal\>/)
+- Meer talen toevoegen (zelfde structuur: `languages.py` + `data/<taal>/`; geen schrift? laat `alphabet_dir` weg)
 - Lastige-woorden-modus: alleen woorden met laag succespercentage
 - Mini-toets: 10 vragen met eindscore en verbeteradvies
 - Sneltoetsen 1-5 voor meerkeuze
