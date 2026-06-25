@@ -58,7 +58,7 @@ def load_words(lang_config: dict, category: str = "Alle woorden") -> pd.DataFram
     data_dir = lang_config["data_dir"]
     word_columns = lang_config["word_columns"]
     target_col = lang_config["target_col"]
-    alphabet_dir = lang_config["alphabet_dir"]
+    alphabet_dir = lang_config.get("alphabet_dir")
 
     if category == "Alle woorden":
         frames = [
