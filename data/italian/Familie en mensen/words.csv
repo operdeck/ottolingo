@@ -10,8 +10,10 @@ grootmoeder,nonna,
 kleinkind,nipote,ook: neef/nicht
 oom,zio,
 tante,zia,
-neef (oomzegger),nipote,ook: kleinkind; neef van oom/tante: cugino
-nicht (oomzegster),nipote,vrouwelijk van cugino: cugina
+neef (oomzegger),nipote,kind van broer of zus; meervoud: nipoti
+nicht (oomzegster),nipote,kind van broer of zus (vrouwelijk); dezelfde vorm als mannelijk
+neef (neef van oom/tante),cugino,kind van oom of tante
+nicht (nicht van oom/tante),cugina,kind van oom of tante (vrouwelijk)
 vriend,amico,vrouwelijk: amica
 vriendin,amica,
 buurman,vicino,vrouwelijk: vicina

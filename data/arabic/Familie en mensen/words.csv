@@ -11,7 +11,12 @@ oom (vader's kant),عم,'amm,
 tante (vader's kant),عمة,'amma,
 oom (moeder's kant),خال,khaal,
 tante (moeder's kant),خالة,khaala,
-neef/nicht,ابن عم,ibn 'amm,specifiek: neef van vaders kant
+neef (neef van oom/tante vaders kant),ابن عم,ibn 'amm,mannelijke neef langs vaders kant
+nicht (nicht van oom/tante vaders kant),بنت عم,bint 'amm,vrouwelijke neef langs vaders kant
+neef (neef van oom/tante moeders kant),ابن خال,ibn khaal,mannelijke neef langs moeders kant
+nicht (nicht van oom/tante moeders kant),بنت خال,bint khaal,vrouwelijke neef langs moeders kant
+neef (oomzegger),ابن أخ,ibn akh,kind van een broer; voor kind van zus: ابن أخت
+nicht (oomzegster),بنت أخت,bint ukht,kind van een zus; voor kind van broer: بنت أخ
 lang,طويل,tawiil,mannelijke vorm; vrouw: tawiila
 kort,قصير,qasiir,mannelijke vorm; vrouw: qasiira
 jong,شاب,shaab,mannelijke vorm; vrouw: shaabba; ook: jongeman
